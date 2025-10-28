@@ -1,0 +1,42 @@
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #0e141b;
+  color: #e3e6eb;
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  color: #fff;
+}
+
+.navbar {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.navbar .nav-link {
+  color: #e3e6eb !important;
+}
+.navbar .nav-link:hover {
+  color: #75aadb !important;
+}
+
+
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #0e141b; /* match your theme */
+  color: #aaa;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 0.9em;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.card {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
