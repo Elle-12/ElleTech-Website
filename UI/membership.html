@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='membership.css') }}">
+{% endblock %}
+
+
+{% block content %}
+<h2 class="text-light mb-4">Membership Status</h2>
+
+<div class="card bg-dark p-4">
+  <p><strong>Current Membership:</strong> {{ user.membership or "None" }}</p>
+  <form method="POST">
+    <div class="row g-2">
+      <div class="col-md-4">
+        <select name="membership" class="form-select">
+          <option value="Basic">Basic</option>
+          <option value="Silver">Silver</option>
+          <option value="Gold">Gold</option>
+          <option value="Platinum">Platinum</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-primary">Update Membership</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+/* ============================================
+   🌐 SHOP PAGE — ElleTech (User View)
+   ============================================ */
+
+body {
+  background-color: #0e141b;
+  color: #e3e6eb;
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding-bottom: 80px;
+}
+
+/* Page Title */
+h2 {
+  text-shadow: 0 0 10px #00bfff;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Subtitle */
+p.text-secondary {
+  color: #aab4c2 !important;
+}
+
+/* ============================================
+   FILTER SECTION
+   ============================================ */
+form {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+form select {
+  background-color: #141e2f;
+  color: #e3e6eb;
+  border: 1px solid #00bfff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: 0.3s;
+}
+
+form select:hover,
+form select:focus {
+  background-color: #1b2c44;
+  outline: none;
+}
+
+form button {
+  background: linear-gradient(90deg, #007bff, #00bfff);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  transition: 0.3s;
+}
+
+form button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(90deg, #00bfff, #007bff);
+}
+
+/* ============================================
+   PRODUCT CARDS
+   ============================================ */
+.card {
+  background-color: rgba(20, 30, 50, 0.95);
+  border: 1px solid rgba(0, 191, 255, 0.15);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 22px rgba(0, 191, 255, 0.2);
+  border-color: #00bfff;
+}
+
+.card img {
+  height: 200px;
+  object-fit: cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-title {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card .text-secondary {
+  color: #aab4c2 !important;
+}
+
+.card .fw-bold {
+  color: #00bfff !important;
+}
+
+/* ============================================
+   ORDER FORM
+   ============================================ */
+.input-group {
+  display: flex;
+}
+
+.input-group input {
+  background-color: #111820;
+  color: #fff;
+  border: 1px solid #00bfff;
+  border-radius: 6px 0 0 6px;
+  padding: 6px 10px;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #33ccff;
+}
+
+.input-group button {
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(90deg, #007bff, #00bfff);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  transition: 0.3s;
+  padding: 6px 12px;
+}
+
+.input-group button:hover {
+  background: linear-gradient(90deg, #00bfff, #007bff);
+  transform: scale(1.05);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 992px) {
+  .card img {
+    height: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  h2 {
+    font-size: 1.6rem;
+  }
+  .card img {
+    height: 160px;
+  }
+  .input-group input,
+  .input-group button {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 0 10px;
+  }
+}
