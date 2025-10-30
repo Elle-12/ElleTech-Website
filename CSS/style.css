@@ -11,13 +11,15 @@ h1, h2, h3 {
 }
 
 .navbar {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  background-color: #000 !important; 
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .navbar .nav-link {
   color: #e3e6eb !important;
 }
 .navbar .nav-link:hover {
-  color: #75aadb !important;
+  color: #6498ff !important;
 }
 
 
@@ -58,7 +60,7 @@ h1, h2, h3 {
   color: #e3e6eb !important;
 }
 .navbar .nav-link:hover {
-  color: #75aadb !important;
+  color: #3f9ae4 !important;
 }
 
 

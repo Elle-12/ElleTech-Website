@@ -1,4 +1,4 @@
-/* 🔹 Hero Section */
+/* Hero Section */
 .hero-section {
   position: relative;
   background: url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80') no-repeat center center/cover;
@@ -19,18 +19,21 @@
   z-index: 2;
 }
 
-/* 🔹 Card Hover */
+/*Card Hover */
 .hover-card {
   transition: transform 0.3s, box-shadow 0.3s;
+  
 }
 .hover-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 8px 20px rgba(0, 123, 255, 0.4);
+  box-shadow: 0 8px 20px rgba(19, 19, 19, 0.4);
 }
 
-/* 🔹 Features Section */
+/* Features Section */
 .features-section {
   background: linear-gradient(90deg, #0a1a2f, #102d44);
+  width: auto;
+  height: auto;
 }
 .feature-box:hover {
   background-color: rgba(0, 123, 255, 0.1);
@@ -41,4 +44,6 @@
 
 .cta-section {
   background: linear-gradient(90deg, #0d1b2a, #1b263b);
+  width: auto;
+  height: auto;
 }
