@@ -1,6 +1,4 @@
-/* ============================================
-   🌐 SHOP PAGE — ElleTech (User View)
-   ============================================ */
+
 
 body {
   background-color: #0e141b;
@@ -10,21 +8,17 @@ body {
   padding-bottom: 80px;
 }
 
-/* Page Title */
 h2 {
   text-shadow: 0 0 10px #00bfff;
   font-weight: 700;
   letter-spacing: 1px;
 }
 
-/* Subtitle */
+
 p.text-secondary {
   color: #aab4c2 !important;
 }
 
-/* ============================================
-   FILTER SECTION
-   ============================================ */
 form {
   display: inline-flex;
   align-items: center;
@@ -61,9 +55,6 @@ form button:hover {
   background: linear-gradient(90deg, #00bfff, #007bff);
 }
 
-/* ============================================
-   PRODUCT CARDS
-   ============================================ */
 .card {
   background-color: rgba(20, 30, 50, 0.95);
   border: 1px solid rgba(0, 191, 255, 0.15);
@@ -108,9 +99,7 @@ form button:hover {
   color: #00bfff !important;
 }
 
-/* ============================================
-   ORDER FORM
-   ============================================ */
+
 .input-group {
   display: flex;
 }
@@ -143,9 +132,6 @@ form button:hover {
   transform: scale(1.05);
 }
 
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
 @media (max-width: 992px) {
   .card img {
     height: 180px;
