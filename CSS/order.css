@@ -1,0 +1,12 @@
+.orders-table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table-hover tr:hover {
+  background: rgba(0,191,255,0.1);
+}
+
+.table th {
+  color: #00bfff;
+}
