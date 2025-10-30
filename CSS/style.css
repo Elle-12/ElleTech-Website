@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #0e141b;
@@ -26,7 +26,7 @@ footer {
   bottom: 0;
   left: 0;
   width: 100%;
-  background-color: #0e141b; /* match your theme */
+  background-color: #0e141b; 
   color: #aaa;
   text-align: center;
   padding: 10px 0;
@@ -40,8 +40,6 @@ footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
 }
-
-=======
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #0e141b;
@@ -69,7 +67,7 @@ footer {
   bottom: 0;
   left: 0;
   width: 100%;
-  background-color: #0e141b; /* match your theme */
+  background-color: #0e141b; 
   color: #aaa;
   text-align: center;
   padding: 10px 0;
@@ -84,9 +82,7 @@ footer {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* ============================================
-   FOOTER (Fixed to bottom but not covering content)
-   ============================================ */
+/*footer*/
 
 html, body {
   height: 100%;
@@ -95,7 +91,7 @@ html, body {
 }
 
 main {
-  flex: 1 0 auto; /* lets main content expand */
+  flex: 1 0 auto; 
 }
 
 .footer {
@@ -107,4 +103,4 @@ main {
   font-size: 0.9em;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
->>>>>>> 572799c (Describe what you changed or added)
+
