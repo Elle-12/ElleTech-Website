@@ -25,7 +25,7 @@ def get_db():
         print("Database connection error:", err)
         raise
 
-# 🔹 DATABASE HELPERS
+# DATABASE HELPERS
 
 def query_all(query, params=()):
     conn = get_db()
