@@ -3,111 +3,275 @@ import mysql.connector
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__, template_folder='UI', static_folder='CSS')
-app.secret_key = os.getenv('SECRET_KEY')
 
+# --- Image upload config ---
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ----------------------------
+# Ensure SECRET_KEY exists (fallback to random but warn in logs)
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    print("Warning: SECRET_KEY not set in environment; using random key for this run.")
+    SECRET_KEY = os.urandom(24)
+app.secret_key = SECRET_KEY
+
+login_content = {
+    'title': 'Login to ElleTech',
+    'username_placeholder': 'Username or Email',
+    'password_placeholder': 'Password',
+    'login_button': 'Login',
+    'register_link_text': 'Don’t have an account? Register here',
+    'invalid_credentials': 'Invalid username or password.'
+}
+
+register_content = {
+    'title': 'Register for ElleTech',
+    'full_name_placeholder': 'Full Name',
+    'email_placeholder': 'Email',
+    'username_placeholder': 'Username',
+    'password_placeholder': 'Password',
+    'contact_no_placeholder': 'Contact Number',
+    'address_placeholder': 'Address',
+    'register_button': 'Register',
+    'login_link_text': 'Already have an account? Login here',
+    'success_message': 'Registered successfully! You can log in now.'
+}
+
+home_content = {
+    'title': 'Welcome to ElleTech',
+    'featured_products_title': 'Featured Products',
+    'shop_now_button': 'Shop Now',
+    'view_details_button': 'View Details'
+}
+
+shop_content = {
+    'title': 'Shop - ElleTech',
+    'all_products_title': 'All Products',
+    'add_to_cart_button': 'Add to Cart',
+    'view_details_button': 'View Details'
+}
+
+about_content = {
+    'title': 'About Us - ElleTech',
+    'about_title': 'About ElleTech',
+    'about_text': 'ElleTech is a leading technology company providing innovative solutions...'
+}
+
+profile_content = {
+    'title': 'Profile - ElleTech',
+    'profile_title': 'Your Profile',
+    'full_name_label': 'Full Name',
+    'contact_no_label': 'Contact Number',
+    'address_label': 'Address',
+    'update_button': 'Update Profile',
+    'update_success': 'Profile updated successfully.'
+}
+
+membership_content = {
+    'title': 'Membership - ElleTech',
+    'membership_title': 'Membership Options',
+    'select_membership_label': 'Select Membership',
+    'update_button': 'Update Membership',
+    'update_success': 'Membership updated.'
+}
+
+products_content = {
+    'title': 'Products Management - ElleTech',
+    'products_title': 'Manage Products',
+    'add_product_title': 'Add New Product',
+    'name_label': 'Name',
+    'description_label': 'Description',
+    'price_label': 'Price',
+    'stock_qty_label': 'Stock Quantity',
+    'add_button': 'Add Product',
+    'edit_button': 'Edit',
+    'delete_button': 'Delete',
+    'update_button': 'Update Product',
+    'product_added': 'Product added successfully.',
+    'product_updated': 'Product updated successfully.',
+    'product_deleted': 'Product deleted successfully.'
+}
+
+orders_content = {
+    'title': 'Your Orders - ElleTech',
+    'orders_title': 'Your Orders',
+    'product_name_label': 'Product Name',
+    'quantity_label': 'Quantity',
+    'total_price_label': 'Total Price',
+    'order_date_label': 'Order Date',
+    'order_placed': 'Order placed successfully.'
+}
+
+admin_dashboard_content = {
+    'title': 'Admin Dashboard - ElleTech',
+    'dashboard_title': 'Admin Dashboard',
+    'products_section_title': 'Products',
+    'orders_section_title': 'Orders',
+    'username_label': 'Username',
+    'product_name_label': 'Product Name',
+    'quantity_label': 'Quantity',
+    'total_price_label': 'Total Price',
+    'order_date_label': 'Order Date',
+    'access_denied': 'Access denied. Admins only.'
+}
 # DATABASE CONNECTION
 def get_db():
     try:
+        # Convert port to int if provided
+        db_port = os.getenv("DB_PORT")
+        if db_port:
+            try:
+                db_port = int(db_port)
+            except ValueError:
+                # keep as string and let connector decide
+                pass
+
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
-            port=os.getenv("DB_PORT"),
+            port=db_port,
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            database=os.getenv("DB_NAME"),
+            autocommit=False  # control commits explicitly
         )
         return conn
     except mysql.connector.Error as err:
         print("Database connection error:", err)
         raise
 
-# DATABASE HELPERS
 
+# DATABASE HELPERS
 def query_all(query, params=()):
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
-    cur.execute(query, params)
-    data = cur.fetchall()
-    cur.close()
-    conn.close()
-    return data
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(query, params)
+        data = cur.fetchall()
+        return data
+    finally:
+        cur.close()
+        conn.close()
+
 
 def query_one(query, params=()):
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
-    cur.execute(query, params)
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return row
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(query, params)
+        row = cur.fetchone()
+        return row
+    finally:
+        cur.close()
+        conn.close()
+
 
 def execute(query, params=()):
+    """Execute a write query and return lastrowid (if available)."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(query, params)
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()
+        lastrowid = getattr(cur, 'lastrowid', None)
+        return lastrowid
+    except Exception as e:
+        conn.rollback()
+        print("Database execute error:", e)
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+# UTIL: login required decorator-like check (simple)
+def require_login():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return None
+
+
+def require_admin():
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+    return None
+
 
 # ROUTES
 
 @app.route('/')
 def index():
     # Redirect based on login status
-    if 'user_id' in session:
+    if 'user_id' not in session:
         return redirect(url_for('home'))
     return redirect(url_for('login'))
+
 
 # LOGIN
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ''
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         user = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, username))
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
-            session['role'] = user.get('role', 'user')  
-            return redirect(url_for('home'))
+            session['role'] = user.get('role', 'user')
+            if session['role'] == 'admin':
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('home'))
         else:
-            msg = 'Invalid username or password.'
-    return render_template('login.html', message=msg)
+            msg = login_content['invalid_credentials']
+    return render_template('login.html', message=msg, content=login_content)
+
 
 # REGISTER
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
     if request.method == 'POST':
-        data = {
-            'full_name': request.form['full_name'],
-            'email': request.form['email'],
-            'username': request.form['username'],
-            'password': generate_password_hash(request.form['password']),
-            'contact_no': request.form['contact_no'],
-            'address': request.form['address']
-        }
-        existing = query_one("SELECT * FROM users WHERE username=%s OR email=%s",
-                             (data['username'], data['email']))
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        username = request.form.get('username', '').strip()
+        password_raw = request.form.get('password', '')
+        contact_no = request.form.get('contact_no', '').strip()
+        address = request.form.get('address', '').strip()
+
+        if not all([full_name, email, username, password_raw]):
+            msg = 'Please fill in required fields.'
+            return render_template('register.html', message=msg, content=register_content)
+
+        password_hash = generate_password_hash(password_raw)
+
+        existing = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, email))
         if existing:
             msg = 'Username or email already exists.'
-        else:
-            execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
-                       VALUES (%s,%s,%s,%s,%s,%s,'user')""",
-                    (data['full_name'], data['email'], data['username'], data['password'],
-                     data['contact_no'], data['address']))
-            msg = 'Registered successfully! You can log in now.'
-            return redirect(url_for('login'))
-    return render_template('register.html', message=msg)
+            return render_template('register.html', message=msg, content=register_content)
+
+        execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
+                   VALUES (%s,%s,%s,%s,%s,%s,'user')""",
+                (full_name, email, username, password_hash, contact_no, address))
+        flash(register_content['success_message'])
+        return redirect(url_for('login'))
+    return render_template('register.html', message=msg, content=register_content)
 
 
 # LOGOUT
-
 @app.route('/logout')
 def logout():
     session.clear()
@@ -115,153 +279,282 @@ def logout():
 
 
 # HOME
-
 @app.route('/home')
 def home():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
     products = query_all("SELECT * FROM products ORDER BY created_at DESC LIMIT 4")
-    return render_template('home.html', featured=products)
+    return render_template('home.html', featured=products, content=home_content)
 
 
 # GLOBAL SHOP PAGE (USER)
-
 @app.route('/shop')
 def shop():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
 
     # Fetch all products
     products = query_all("SELECT * FROM products ORDER BY created_at DESC")
 
     # Fetch unique categories (if category column exists)
     try:
-        categories = query_all("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")
-    except:
+        categories = [row['category'] for row in query_all("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")]
+    except Exception:
         categories = []
 
-    return render_template('shop.html', products=products, categories=categories)
+    return render_template('shop.html', products=products, categories=categories, content=shop_content)
+
 
 # ABOUT
 @app.route('/about')
 def about():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('about.html')
+    r = require_login()
+    if r:
+        return r
+    return render_template('about.html', content=about_content)
+
 
 # PROFILE
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
         execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s WHERE id=%s",
-                (request.form['full_name'], request.form['contact_no'],
-                 request.form['address'], session['user_id']))
-        flash('Profile updated successfully.')
+                (request.form.get('full_name'), request.form.get('contact_no'),
+                 request.form.get('address'), session['user_id']))
+        flash(profile_content['update_success'])
         return redirect(url_for('profile'))
-    return render_template('profile.html', user=user)
+    return render_template('profile.html', user=user, content=profile_content)
+
 
 # MEMBERSHIP
 @app.route('/membership', methods=['GET', 'POST'])
 def membership():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
-        membership = request.form['membership']
+        membership = request.form.get('membership')
         execute("UPDATE users SET membership=%s WHERE id=%s", (membership, session['user_id']))
-        flash('Membership updated.')
+        flash(membership_content['update_success'])
         return redirect(url_for('membership'))
-    return render_template('membership.html', user=user)
+    return render_template('membership.html', user=user, content=membership_content)
+
 
 # PRODUCTS (ADMIN CRUD)
-@app.route('/products', methods=['GET', 'POST'])
-@app.route('/products/<int:id>', methods=['GET', 'POST'])
-def products(id=None):
+# PRODUCTS (ADMIN CRUD)
+@app.route('/admin_products', methods=['GET', 'POST'])
+@app.route('/admin_products/<int:id>', methods=['GET', 'POST'])
+def admin_products(id=None):
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    # --- CREATE NEW PRODUCT ---
+    if request.method == 'POST' and id is None:
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        price = request.form.get('price', '0').strip()
+        stock_qty = request.form.get('stock_qty', '0').strip()
+        category = request.form.get('category')
+
+        if not name:
+            flash('Product name is required.')
+            return redirect(url_for('admin_products'))
+
+        execute("""INSERT INTO products (name, description, price, stock_qty, category, created_at)
+                   VALUES (%s, %s, %s, %s, %s, NOW())""",
+                (name, description, price, stock_qty, category))
+        flash(products_content['product_added'])
+        return redirect(url_for('admin_products'))
+
+    # --- EDIT / VIEW A SINGLE PRODUCT ---
+    if id is not None:
+        product = query_one("SELECT * FROM products WHERE id=%s", (id,))
+        if not product:
+            flash('Product not found.')
+            return redirect(url_for('admin_products'))
+
+        if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip()
+            price = request.form.get('price', '0').strip()
+            stock_qty = request.form.get('stock_qty', '0').strip()
+            category = request.form.get('category')
+
+            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s
+                       WHERE id=%s""",
+                    (name, description, price, stock_qty, category, id))
+            flash(products_content['product_updated'])
+            return redirect(url_for('admin_products'))
+
+        # GET single product -> show edit form
+        return render_template('admin/product_edit.html', product=product, content=products_content)
+
+    # --- DEFAULT: show product list for admin ---
+    products_list = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    return render_template('admin/admin_products.html', products=products_list, content=products_content)
+
+
+# Product delete route (admin)
+@app.route('/products/delete/<int:id>', methods=['POST'])
+def product_delete(id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
 
-    # --- CREATE ---
-    if request.method == 'POST' and id is None:
-        execute("INSERT INTO products (name, description, price, stock_qty) VALUES (%s, %s, %s, %s)",
-                (request.form['name'], request.form['description'], request.form['price'], request.form['stock_qty']))
-        flash("Product added successfully.")
-        return redirect(url_for('products'))
+    # Delete product
+    execute("DELETE FROM products WHERE id=%s", (id,))
+    flash(products_content['product_deleted'])
+    return redirect(url_for('products'))
 
-    # --- UPDATE ---
-    if request.method == 'POST' and id:
-        execute("UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s WHERE id=%s",
-                (request.form['name'], request.form['description'], request.form['price'], request.form['stock_qty'], id))
-        flash("Product updated successfully.")
-        return redirect(url_for('products'))
-
-    # --- DELETE ---
-    if request.method == 'GET' and id:
-        execute("DELETE FROM products WHERE id=%s", (id,))
-        flash("Product deleted successfully.")
-        return redirect(url_for('products'))
-
-    # --- READ ---
-    items = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('products.html', products=items)
 
 # ADD ORDER
 @app.route('/order_add/<int:product_id>', methods=['POST'])
 def order_add(product_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
 
     product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
     if not product:
         flash("Product not found.")
         return redirect(url_for('home'))
 
-    quantity = int(request.form.get('quantity', 1))
-    total_price = float(product['price']) * quantity
+    try:
+        quantity = int(request.form.get('quantity', 1))
+    except ValueError:
+        quantity = 1
 
-    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price)
-               VALUES (%s, %s, %s, %s)""",
+    # ensure price numeric
+    try:
+        price = float(product.get('price', 0))
+    except Exception:
+        price = 0.0
+
+    total_price = price * quantity
+
+    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, order_date)
+               VALUES (%s, %s, %s, %s, NOW())""",
             (session['user_id'], product_id, quantity, total_price))
 
-    flash("Order placed successfully.")
+    flash(orders_content['order_placed'])
     return redirect(url_for('orders'))
+
 
 # ORDERS PAGE
 @app.route('/orders', methods=['GET'])
 def orders():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
     orders = query_all("""SELECT o.*, p.name AS product_name, p.price
                           FROM orders o
                           JOIN products p ON o.product_id = p.id
                           WHERE o.user_id=%s
                           ORDER BY o.order_date DESC""",
                        (session['user_id'],))
-    return render_template('orders.html', orders=orders)
+    return render_template('orders.html', orders=orders, content=orders_content)
+
 
 # ADMIN DASHBOARD
 @app.route('/admin', methods=['GET'])
 def admin_dashboard():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+    r = require_login()
+    if r:
+        return r
 
-    #Admin
+    # Admin check
     if session.get('role') != 'admin':
-        flash('Access denied. Admins only.')
+        flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
 
-    # Get all products and orders
+    # Get stats for dashboard - handle None cases
+    total_products_row = query_one("SELECT COUNT(*) as count FROM products")
+    total_orders_row = query_one("SELECT COUNT(*) as count FROM orders")
+    total_users_row = query_one("SELECT COUNT(*) as count FROM users")
+
+    total_products = total_products_row['count'] if total_products_row else 0
+    total_orders = total_orders_row['count'] if total_orders_row else 0
+    total_users = total_users_row['count'] if total_users_row else 0
+
+    return render_template('admin/dashboard.html',
+                           total_products=total_products,
+                           total_orders=total_orders,
+                           total_users=total_users,
+                           content=admin_dashboard_content)
+
+#admin shop
+@app.route('/admin_shop')
+def admin_shop():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
     products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    orders = query_all("""SELECT o.id, u.username, p.name AS product_name, 
-                                 o.quantity, o.total_price, o.order_date
+    return render_template('admin/admin_shop.html', products=products, content=shop_content)
+
+
+# ADMIN ORDERS
+@app.route('/admin_orders', methods=['GET'])
+def admin_orders():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    # Fetch all orders with user and product info
+    orders = query_all("""SELECT o.*, u.username AS user_name, p.name AS product_name
                           FROM orders o
                           JOIN users u ON o.user_id = u.id
                           JOIN products p ON o.product_id = p.id
                           ORDER BY o.order_date DESC""")
-    return render_template('admin_dashboard.html', products=products, orders=orders)
+
+    return render_template('admin/admin_orders.html', orders=orders, content=admin_dashboard_content)
+
+
+# UPDATE ORDER STATUS (ADMIN)
+@app.route('/admin_update_order_status/<int:order_id>', methods=['POST'])
+def admin_update_order_status(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    status = request.form.get('status')
+    if status not in ['pending', 'shipped', 'delivered']:
+        flash('Invalid status.')
+        return redirect(url_for('admin_orders'))
+
+    execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
+    flash('Order status updated successfully.')
+    return redirect(url_for('admin_orders'))
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

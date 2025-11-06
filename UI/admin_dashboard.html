@@ -29,8 +29,8 @@
             <td>₱{{ "%.2f"|format(p.price) }}</td>
             <td>{{ p.stock_qty }}</td>
             <td>
-              <a href="{{ url_for('products', id=p.id) }}" class="btn btn-sm btn-warning">Edit</a>
-              <a href="{{ url_for('products', id=p.id) }}" class="btn btn-sm btn-danger">Delete</a>
+              <a href="{{ url_for('admin_products', id=p.id) }}" class="btn btn-sm btn-warning">Edit</a>
+              <a href="{{ url_for('admin_products', id=p.id) }}" class="btn btn-sm btn-danger">Delete</a>
             </td>
           </tr>
           {% else %}
@@ -38,7 +38,7 @@
           {% endfor %}
         </tbody>
       </table>
-      <a href="{{ url_for('products') }}" class="btn btn-success w-100 mt-3">➕ Manage Products</a>
+      <a href="{{ url_for('admin_products') }}" class="btn btn-success w-100 mt-3">➕ Manage Products</a>
     </div>
   </div>
 

@@ -35,7 +35,7 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto text-center">
           <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link {% if request.endpoint == 'home' %}active{% endif %}">Home</a></li>
-          <li class="nav-item"><a href="{{ url_for('products') }}" class="nav-link {% if request.endpoint == 'shop' %}active{% endif %}">Shop</a></li>
+          <li class="nav-item"><a href="{{ url_for('shop') }}" class="nav-link {% if request.endpoint == 'shop' %}active{% endif %}">Shop</a></li>
           <li class="nav-item"><a href="{{ url_for('orders') }}" class="nav-link {% if request.endpoint == 'orders' %}active{% endif %}">Orders</a></li>
           <li class="nav-item"><a href="{{ url_for('membership') }}" class="nav-link {% if request.endpoint == 'membership' %}active{% endif %}">Membership</a></li>
           <li class="nav-item"><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">Profile</a></li>
