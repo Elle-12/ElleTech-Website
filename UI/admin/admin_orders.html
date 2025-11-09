@@ -1,53 +1,51 @@
 {% extends "admin/admin_layout.html" %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='style_admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='shop.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2 class="text-light mb-4 text-center">Manage Orders</h2>
+<div class="container py-4">
+  <div class="text-center mb-5">
+    <h2 class="fw-bold text-light">Manage Orders</h2>
+    <p class="text-secondary">View and update order statuses.</p>
+  </div>
 
-  <!-- Orders Table -->
-  <div class="card bg-dark p-3 shadow-sm">
-    <table class="table table-dark table-striped table-hover align-middle mb-0">
-      <thead class="table-light text-dark">
-        <tr>
-          <th>Order ID</th>
-          <th>User</th>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Total Price</th>
-          <th>Status</th>
-          <th>Order Date</th>
-          <th class="text-center">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for order in orders %}
-        <tr>
-          <td>{{ order.id }}</td>
-          <td>{{ order.user_id }}</td> <!-- Assuming user_id, but could join to get username -->
-          <td>{{ order.product_name }}</td>
-          <td>{{ order.quantity }}</td>
-          <td>${{ "%.2f"|format(order.total_price) }}</td>
-          <td>
-            <form method="POST" action="{{ url_for('admin_update_order_status', order_id=order.id) }}" class="d-inline">
-              <select name="status" class="form-select form-select-sm bg-transparent text-light border-0">
+  <!-- Orders Grid -->
+  <div class="row justify-content-center">
+    {% for order in orders %}
+    <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+      <div class="card bg-dark border border-primary shadow-lg h-100 hover-card">
+        {% if order.image %}
+          <img src="{{ url_for('static', filename='uploads/' + order.image) }}" 
+               class="card-img-top rounded-top" alt="{{ order.product_name }}">
+        {% else %}
+          <img src="{{ url_for('static', filename='img/logo.png') }}" 
+               class="card-img-top rounded-top" alt="{{ order.product_name }}">
+        {% endif %}
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title text-light">{{ order.product_name }}</h5>
+          <p class="text-secondary small">Order ID: {{ order.id }}</p>
+          <p class="text-secondary small">User: {{ order.user_full_name }} ({{ order.user_name }})</p>
+          <p class="text-secondary small">Address: {{ order.user_address or "N/A" }}</p>
+          <p class="text-secondary small">Quantity: {{ order.quantity }}</p>
+          <p class="fw-bold text-info mb-2">₱{{ "%.2f"|format(order.total_price) }}</p>
+          <p class="text-secondary small mb-2">Payment: {{ order.payment_method }} ({{ order.payment_status }})</p>
+          <p class="text-secondary small mb-3">Date: {{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</p>
+          <form method="POST" action="{{ url_for('admin_update_order_status', order_id=order.id) }}">
+            <div class="d-flex gap-2">
+              <select name="status" class="form-select form-select-sm">
                 <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
                 <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
                 <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
               </select>
-              <button type="submit" class="btn btn-sm btn-warning ms-1">Update</button>
-            </form>
-          </td>
-          <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td class="text-center">
-            <!-- Additional actions if needed -->
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+              <button type="submit" class="btn btn-warning btn-sm">Update</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

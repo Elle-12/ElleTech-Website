@@ -13,12 +13,13 @@
 
   <!-- Filter Section -->
   <div class="text-center mb-4">
-    <form method="GET" action="{{ url_for('shop') }}" class="d-inline-block">
+    <form method="GET" action="{{ url_for('admin_shop') }}" class="d-inline-block">
       <select name="category" class="form-select d-inline-block w-auto">
         <option value="">All Categories</option>
-        {% for c in categories %}
-          <option value="{{ c.category }}">{{ c.category }}</option>
-        {% endfor %}
+        <option value="Smartphones & Accessories">Smartphones & Accessories</option>
+        <option value="Computers & Laptops">Computers & Laptops</option>
+        <option value="Gaming">Gaming</option>
+        <option value="Audio & Headphones">Audio & Headphones</option>
       </select>
       <button type="submit" class="btn btn-info ms-2">Filter</button>
     </form>

@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, template_folder='UI', static_folder='CSS')
+app = Flask(__name__, template_folder='UI', static_folder='static')
 
 # --- Image upload config ---
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -32,7 +32,7 @@ login_content = {
     'username_placeholder': 'Username or Email',
     'password_placeholder': 'Password',
     'login_button': 'Login',
-    'register_link_text': 'Don’t have an account? Register here',
+    'register_link_text': 'Don\'t have an account? Register here',
     'invalid_credentials': 'Invalid username or password.'
 }
 
@@ -126,6 +126,7 @@ admin_dashboard_content = {
     'order_date_label': 'Order Date',
     'access_denied': 'Access denied. Admins only.'
 }
+
 # DATABASE CONNECTION
 def get_db():
     try:
@@ -295,8 +296,13 @@ def shop():
     if r:
         return r
 
-    # Fetch all products
-    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    category_filter = request.args.get('category', '')
+
+    # Fetch products based on category filter
+    if category_filter:
+        products = query_all("SELECT * FROM products WHERE category=%s ORDER BY created_at DESC", (category_filter,))
+    else:
+        products = query_all("SELECT * FROM products ORDER BY created_at DESC")
 
     # Fetch unique categories (if category column exists)
     try:
@@ -304,7 +310,7 @@ def shop():
     except Exception:
         categories = []
 
-    return render_template('shop.html', products=products, categories=categories, content=shop_content)
+    return render_template('shop.html', products=products, categories=categories, selected_category=category_filter, content=shop_content)
 
 
 # ABOUT
@@ -348,7 +354,6 @@ def membership():
 
 
 # PRODUCTS (ADMIN CRUD)
-# PRODUCTS (ADMIN CRUD)
 @app.route('/admin_products', methods=['GET', 'POST'])
 @app.route('/admin_products/<int:id>', methods=['GET', 'POST'])
 def admin_products(id=None):
@@ -369,13 +374,22 @@ def admin_products(id=None):
         stock_qty = request.form.get('stock_qty', '0').strip()
         category = request.form.get('category')
 
+        # Handle image upload
+        image_filename = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                image_filename = filename
+
         if not name:
             flash('Product name is required.')
             return redirect(url_for('admin_products'))
 
-        execute("""INSERT INTO products (name, description, price, stock_qty, category, created_at)
-                   VALUES (%s, %s, %s, %s, %s, NOW())""",
-                (name, description, price, stock_qty, category))
+        execute("""INSERT INTO products (name, description, price, stock_qty, category, image, created_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, NOW())""",
+                (name, description, price, stock_qty, category, image_filename))
         flash(products_content['product_added'])
         return redirect(url_for('admin_products'))
 
@@ -393,25 +407,36 @@ def admin_products(id=None):
             stock_qty = request.form.get('stock_qty', '0').strip()
             category = request.form.get('category')
 
-            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s
+            # Handle image update
+            image_filename = product['image']  # Keep existing image
+            if 'image' in request.files:
+                file = request.files['image']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    image_filename = filename
+
+            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s
                        WHERE id=%s""",
-                    (name, description, price, stock_qty, category, id))
+                    (name, description, price, stock_qty, category, image_filename, id))
             flash(products_content['product_updated'])
             return redirect(url_for('admin_products'))
 
         # GET single product -> show edit form
         return render_template('admin/product_edit.html', product=product, content=products_content)
 
-    # --- DEFAULT: show product list for admin ---
+    # --- LIST ALL PRODUCTS ---
     products_list = query_all("SELECT * FROM products ORDER BY created_at DESC")
     return render_template('admin/admin_products.html', products=products_list, content=products_content)
 
 
-# Product delete route (admin)
-@app.route('/products/delete/<int:id>', methods=['POST'])
-def product_delete(id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
+@app.route('/admin_products/delete/<int:id>', methods=['POST'])
+def admin_products_delete(id):
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
@@ -419,7 +444,30 @@ def product_delete(id):
     # Delete product
     execute("DELETE FROM products WHERE id=%s", (id,))
     flash(products_content['product_deleted'])
-    return redirect(url_for('products'))
+    return redirect(url_for('admin_products'))
+
+
+@app.route('/admin_products/bulk_delete', methods=['POST'])
+def admin_products_bulk_delete():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    selected_ids = request.form.getlist('selected[]')
+    if not selected_ids:
+        flash('No products selected.')
+        return redirect(url_for('admin_products'))
+
+    # Delete selected products
+    for id in selected_ids:
+        execute("DELETE FROM products WHERE id=%s", (id,))
+    flash(f'Deleted {len(selected_ids)} product(s).')
+    return redirect(url_for('admin_products'))
 
 
 # ADD ORDER
@@ -439,6 +487,8 @@ def order_add(product_id):
     except ValueError:
         quantity = 1
 
+    payment_method = request.form.get('payment_method', 'Cash on Delivery')
+
     # ensure price numeric
     try:
         price = float(product.get('price', 0))
@@ -447,9 +497,9 @@ def order_add(product_id):
 
     total_price = price * quantity
 
-    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, order_date)
-               VALUES (%s, %s, %s, %s, NOW())""",
-            (session['user_id'], product_id, quantity, total_price))
+    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, payment_method, payment_status, order_date)
+               VALUES (%s, %s, %s, %s, %s, 'unpaid', NOW())""",
+            (session['user_id'], product_id, quantity, total_price, payment_method))
 
     flash(orders_content['order_placed'])
     return redirect(url_for('orders'))
@@ -461,13 +511,60 @@ def orders():
     r = require_login()
     if r:
         return r
-    orders = query_all("""SELECT o.*, p.name AS product_name, p.price
+    orders = query_all("""SELECT o.*, p.name AS product_name, p.price, p.image
                           FROM orders o
                           JOIN products p ON o.product_id = p.id
                           WHERE o.user_id=%s
                           ORDER BY o.order_date DESC""",
                        (session['user_id'],))
     return render_template('orders.html', orders=orders, content=orders_content)
+
+
+# UPDATE ORDER PAYMENT METHOD
+@app.route('/update_order_payment/<int:order_id>', methods=['POST'])
+def update_order_payment(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the order belongs to the user
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    if not order:
+        flash("Order not found.")
+        return redirect(url_for('orders'))
+
+    payment_method = request.form.get('payment_method')
+    if payment_method not in ['Cash on Delivery', 'GCash', 'PayMaya']:
+        flash("Invalid payment method.")
+        return redirect(url_for('orders'))
+
+    execute("UPDATE orders SET payment_method=%s WHERE id=%s", (payment_method, order_id))
+    flash("Payment method updated successfully.")
+    return redirect(url_for('orders'))
+        
+
+# CONFIRM PAYMENT
+@app.route('/confirm_payment/<int:order_id>', methods=['POST'])
+def confirm_payment(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the order belongs to the user
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    if not order:
+        flash("Order not found.")
+        return redirect(url_for('orders'))
+
+    reference = request.form.get('reference', '').strip()
+    if not reference:
+        flash("Reference/Transaction ID is required.")
+        return redirect(url_for('orders'))
+
+    # Update payment status to paid
+    execute("UPDATE orders SET payment_status='paid' WHERE id=%s", (order_id,))
+    flash("Payment confirmed successfully. Reference: " + reference)
+    return redirect(url_for('orders'))
 
 
 # ADMIN DASHBOARD
@@ -479,7 +576,6 @@ def admin_dashboard():
 
     # Admin check
     if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
 
     # Get stats for dashboard - handle None cases
@@ -497,7 +593,7 @@ def admin_dashboard():
                            total_users=total_users,
                            content=admin_dashboard_content)
 
-#admin shop
+
 @app.route('/admin_shop')
 def admin_shop():
     r = require_login()
@@ -508,8 +604,22 @@ def admin_shop():
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
-    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_shop.html', products=products, content=shop_content)
+
+    category_filter = request.args.get('category', '')
+
+    # Fetch products based on category filter
+    if category_filter:
+        products = query_all("SELECT * FROM products WHERE category=%s ORDER BY created_at DESC", (category_filter,))
+    else:
+        products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+
+    # Fetch unique categories (if category column exists)
+    try:
+        categories = [row['category'] for row in query_all("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")]
+    except Exception:
+        categories = []
+
+    return render_template('admin/admin_shop.html', products=products, categories=categories, selected_category=category_filter, content=shop_content)
 
 
 # ADMIN ORDERS
@@ -525,7 +635,7 @@ def admin_orders():
         return redirect(url_for('home'))
 
     # Fetch all orders with user and product info
-    orders = query_all("""SELECT o.*, u.username AS user_name, p.name AS product_name
+    orders = query_all("""SELECT o.*, u.username AS user_name, u.full_name AS user_full_name, u.address AS user_address, p.name AS product_name, p.image AS image
                           FROM orders o
                           JOIN users u ON o.user_id = u.id
                           JOIN products p ON o.product_id = p.id
@@ -551,8 +661,14 @@ def admin_update_order_status(order_id):
         flash('Invalid status.')
         return redirect(url_for('admin_orders'))
 
-    execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
-    flash('Order status updated successfully.')
+    # If status is 'delivered', also mark payment as paid
+    if status == 'delivered':
+        execute("UPDATE orders SET status=%s, payment_status='paid' WHERE id=%s", (status, order_id))
+        flash('Order status updated to delivered and payment marked as paid.')
+    else:
+        execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
+        flash('Order status updated successfully.')
+
     return redirect(url_for('admin_orders'))
 
 

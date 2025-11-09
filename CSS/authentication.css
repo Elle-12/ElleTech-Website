@@ -1,51 +1,70 @@
 .auth-container {
-  height: auto;
-display: flex;
-  justify-content: center;
-  align-items: center;
-  background: url('img/bgLogin.jpg')
-     no-repeat center center;
-  background-size: cover;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 100vh !important;
+  background-color: #0e141b !important;
+  padding: 20px !important;
 }
 
 .auth-card {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  border-radius: 15px;
-  padding: 40px;
-  width: 350px;
-  height: 75%;
-  color: rgb(246, 246, 246);
-  text-align: center;
-    margin-top: 2%;
-  margin-bottom: 5%;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 15px !important;
+  padding: 40px !important;
+  width: 100% !important;
+  max-width: 420px !important;
+  text-align: center !important;
+  color: #e3e6eb !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
 }
 
-
-.auth-card input {
-  background: rgb(255, 255, 255);
-  color: #000000;
-  border: none;
-}
-
-.auth-card input:focus {
-  background: rgb(250, 249, 249);
-  color: #000000;
-  box-shadow: 0 0 5px #00bfff;
-}
-
-.auth-card button {
-  background: linear-gradient(90deg, #1e90ff, #00bfff);
-  border: none;
-}
-
-.auth-card button:hover {
-  background: linear-gradient(90deg, #00bfff, #1e90ff);
-  transform: scale(1.03);
-}
 .auth-logo {
-  width: 120px;
-  margin-bottom: 15px;
-  filter: drop-shadow(0 0 8px #eb7b81);
-  border-radius: 50%;
+  width: 90px !important;
+  height: auto !important;
+  margin-bottom: 15px !important;
+}
+
+.auth-card h2 {
+  color: #ffffff !important;
+  margin-bottom: 25px !important;
+}
+
+.auth-card input.form-control {
+  background-color: #1a222b !important;
+  color: #e3e6eb !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+}
+
+.auth-card input.form-control::placeholder {
+  color: #aaa !important;
+}
+
+.auth-card .btn {
+  background-color: #3f9ae4 !important;
+  border: none !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  transition: 0.3s ease !important;
+}
+
+.auth-card .btn:hover {
+  background-color: #6498ff !important;
+}
+
+.auth-card a.text-info {
+  color: #3f9ae4 !important;
+  text-decoration: none !important;
+}
+
+.auth-card a.text-info:hover {
+  text-decoration: underline !important;
+}
+
+.auth-card p {
+  color: #ccc !important;
+  margin-top: 15px !important;
 }

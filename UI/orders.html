@@ -4,24 +4,68 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='orders.css') }}">
 {% endblock %}
 
-
 {% block content %}
 <h2 class="text-light mb-4">My Orders</h2>
 
 <table class="table table-dark table-hover align-middle">
-  <thead><tr><th>Product</th><th>Qty</th><th>Total Price</th><th>Status</th><th>Date</th></tr></thead>
+  <thead><tr><th>Product</th><th>Qty</th><th>Total Price</th><th>Payment Method</th><th>Payment Status</th><th>Order Status</th><th>Date</th><th>Actions</th></tr></thead>
   <tbody>
     {% for o in orders %}
     <tr>
-      <td>{{ o.product_name }}</td>
+      <td>
+        {% if o.image %}
+        <img src="{{ url_for('static', filename='uploads/' + o.image) }}" alt="{{ o.product_name }}" class="product-img me-2">
+        {% endif %}
+        {{ o.product_name }}
+      </td>
       <td>{{ o.quantity }}</td>
       <td>₱{{ "%.2f"|format(o.total_price) }}</td>
+      <td>{{ o.payment_method or "N/A" }}</td>
+      <td>{{ o.payment_status or "N/A" }}</td>
       <td>{{ o.status }}</td>
       <td>{{ o.order_date.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>
+        {% if o.payment_status == 'unpaid' %}
+        <form method="POST" action="{{ url_for('update_order_payment', order_id=o.id) }}" class="d-inline">
+          <select name="payment_method" class="form-select form-select-sm mb-1">
+            <option value="Cash on Delivery" {% if o.payment_method == 'Cash on Delivery' %}selected{% endif %}>Cash on Delivery</option>
+            <option value="GCash" {% if o.payment_method == 'GCash' %}selected{% endif %}>GCash</option>
+            <option value="PayMaya" {% if o.payment_method == 'PayMaya' %}selected{% endif %}>PayMaya</option>
+          </select>
+          <button type="submit" class="btn btn-sm btn-primary">Update Payment</button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<!-- Payment Process for Online Payments -->
+{% for o in orders %}
+{% if o.payment_status == 'unpaid' and o.payment_method in ['GCash', 'PayMaya'] %}
+<div class="mt-4 p-3 bg-dark border border-warning rounded">
+  <h5 class="text-warning">Payment Process for Order #{{ o.id }}</h5>
+  <p>Please complete your payment using {{ o.payment_method }}.</p>
+  {% if o.payment_method == 'GCash' %}
+  <p><strong>GCash Number:</strong> 09123456789</p>
+  <p><strong>Amount:</strong> ₱{{ "%.2f"|format(o.total_price) }}</p>
+  <p>Send the payment to the above number and reply with the reference number to confirm.</p>
+  {% elif o.payment_method == 'PayMaya' %}
+  <p><strong>PayMaya Account:</strong> paymaya@example.com</p>
+  <p><strong>Amount:</strong> ₱{{ "%.2f"|format(o.total_price) }}</p>
+  <p>Send the payment to the above account and reply with the transaction ID to confirm.</p>
+  {% endif %}
+  <form method="POST" action="{{ url_for('confirm_payment', order_id=o.id) }}" class="mt-2">
+    <div class="mb-2">
+      <label for="reference_{{ o.id }}" class="form-label text-light">Reference/Transaction ID:</label>
+      <input type="text" name="reference" id="reference_{{ o.id }}" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Confirm Payment</button>
+  </form>
+</div>
+{% endif %}
+{% endfor %}
 
 {% endblock %}
 

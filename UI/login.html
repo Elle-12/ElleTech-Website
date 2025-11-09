@@ -1,31 +1,124 @@
-{% extends "layout.html" %}
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='authentication.css') }}">
-{% endblock %}
-{% block content %}
-<div class="auth-container">
-  <div class="auth-card shadow-lg">
-   <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ElleTech Logo" class="auth-logo mb-3">
-    <h2 class="fw-bold mb-3">Login to ElleTech</h2>
-    <form method="POST">
-      <div class="mb-3">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | ElleTech</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-image: url('/static/img/bglogin.jpg'); 
+      background-size: cover;        
+      background-position: center;    
+      background-repeat: no-repeat;  
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0d1117;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+    .auth-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+    .auth-card {
+      background-color: #1a222b;
+      padding: 2rem;
+      border-radius: 15px;
+      width: 350px;
+      box-shadow: 0 0 20px rgba(63, 154, 228, 0.4);
+      text-align: center;
+    }
+    .auth-logo {
+      margin-top: 10%;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #3f9ae4;
+      background-color: #1a222b;
+      box-shadow: 0 0 10px #3f9ae4;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+      color: #3f9ae4;
+    }
+    .form-control {
+      margin-left: -10px;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #2a323c;
+      color: white;
+      font-size: 14px;
+      outline: none;
+      transition: 0.2s;
+    }
+    .form-control:focus {
+      box-shadow: 0 0 8px #3f9ae4;
+      background-color: #2f3842;
+    }
+    .btn-primary {
+      margin-left: -10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 105%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #3f9ae4;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .btn-primary:hover {
+      background-color: #3180c4;
+    }
+    a {
+      color: #3f9ae4;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .message {
+      margin-top: 1rem;
+      color: #ff5555;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <img src="../static/img/logo.png" alt="ElleTech Logo" class="auth-logo">
+
+      <h2>Login to ElleTech</h2>
+
+      <form action="/login" method="POST">
         <input type="text" name="username" class="form-control" placeholder="Username or Email" required>
-      </div>
-      <div class="mb-3">
         <input type="password" name="password" class="form-control" placeholder="Password" required>
-      </div>
-      <button class="btn btn-primary w-100">Login</button>
-    </form>
-    <p class="mt-3">
-      Don’t have an account? <a href="{{ url_for('register') }}" class="text-info">Register here</a>
-    </p>
-    {% if message %}
-    <p class="text-danger mt-2">{{ message }}</p>
-    {% endif %}
+        <button class="btn-primary">Login</button>
+      </form>
+
+      <p class="mt-3">Don't have an account? <a href="/register">Register here</a></p>
+
+      {% if message %}
+      <p class="message">{{ message }}</p>
+      {% endif %}
+    </div>
   </div>
-</div>
-{% endblock %}
-
-
-
+</body>
+</html>

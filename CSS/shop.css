@@ -16,7 +16,7 @@ h2 {
 
 
 p.text-secondary {
-  color: #aab4c2 !important;
+  color: #ffffff !important;
 }
 
 form {
@@ -40,14 +40,19 @@ form select:focus {
   outline: none;
 }
 
-form button {
-  background: linear-gradient(90deg, #007bff, #00bfff);
+.btn-info {
+  background: linear-gradient(90deg, #17a2b8, #00bfff);
   border: none;
-  border-radius: 8px;
   color: #fff;
   font-weight: 600;
   padding: 6px 16px;
   transition: 0.3s;
+  text-shadow: 0 0 5px #000;
+}
+
+.btn-info:hover {
+  background: linear-gradient(90deg, #00bfff, #17a2b8);
+  transform: translateY(-2px);
 }
 
 form button:hover {
