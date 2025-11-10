@@ -1,29 +1,104 @@
 {% extends "layout.html" %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='products.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 {% endblock %}
 
 {% block content %}
-<h2 class="text-light mb-4">My Profile</h2>
+<div class="container py-4 profile-page">
+  <div class="text-center mb-5">
+    <h2 class="fw-bold text-light">ElleTech Profile</h2>
+    <p class="text-secondary">Manage your personal information and preferences.</p>
+  </div>
 
-<div class="card bg-dark p-4">
-  <form method="POST">
-    <div class="mb-3">
-      <label class="form-label">Full Name</label>
-      <input name="full_name" value="{{ user.full_name }}" class="form-control">
+  <!-- Profile Card -->
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card bg-dark border border-primary shadow-lg h-100 hover-card">
+        <div class="card-body text-center">
+          <div class="profile-pic-section mb-4">
+            {% if user.profile_pic %}
+              <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}" alt="Profile Picture" class="profile-pic" style="width: 250px; height: 250px;">
+            {% else %}
+              <div class="profile-pic-placeholder">{{ user.full_name[0].upper() if user.full_name else 'U' }}</div>
+            {% endif %}
+          </div>
+
+          <div class="profile-info-section">
+            <div class="detail-row mb-3" style="display: center; align-items: center; text-align: center; color: aliceblue;">
+              <span class="label">Name:</span>
+              <span class="value">{{ user.full_name or 'User' }}</span>
+            </div>
+            <div class="detail-row mb-3" style="display: center;  align-items: center; text-align: center; color: aliceblue;">
+              <span class="label">Username:</span>
+              <span class="value">{{ user.username }}</span>
+            </div>
+            <div class="detail-row mb-3" style="display: center;  align-items: center; text-align: center; color: aliceblue;">
+              <span class="label">Contact:</span>
+              <span class="value">{{ user.contact_no or 'N/A' }}</span>
+            </div>
+            <div class="detail-row mb-3" style="display: center;  align-items: center; text-align: center; color: aliceblue;">
+              <span class="label">Address:</span>
+              <span class="value">{{ user.address or 'N/A' }}</span>
+            </div>
+          </div>
+
+          <button id="edit-btn" class="btn btn-success mt-4">Edit Profile</button>
+        </div>
+      </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Contact No</label>
-      <input name="contact_no" value="{{ user.contact_no }}" class="form-control">
+  </div>
+
+  <!-- Edit Form -->
+  <div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-6">
+      <div class="card bg-dark border border-primary shadow-lg" id="edit-form" style="display: none;">
+        <div class="card-body">
+          <h3 class="text-center text-light mb-4">Edit Profile</h3>
+          <form method="POST" enctype="multipart/form-data" id="edit-profile-form">
+            <div class="form-group mb-3">
+              <label for="profile_pic" class="text-light">Profile Picture</label>
+              <input type="file" name="profile_pic" id="profile_pic" class="form-control bg-dark text-light border-secondary" accept="image/*">
+              <small class="form-text text-secondary">Upload a new profile picture (PNG, JPG, JPEG, GIF)</small>
+            </div>
+
+            <div class="form-group mb-3">
+              <label for="full_name" class="text-light">Full Name</label>
+              <input type="text" name="full_name" id="full_name" value="{{ user.full_name }}" class="form-control bg-dark text-light border-secondary" required>
+            </div>
+
+            <div class="form-group mb-3">
+              <label for="contact_no" class="text-light">Contact Number</label>
+              <input type="text" name="contact_no" id="contact_no" value="{{ user.contact_no }}" class="form-control bg-dark text-light border-secondary">
+            </div>
+
+            <div class="form-group mb-3">
+              <label for="address" class="text-light">Address</label>
+              <input type="text" name="address" id="address" value="{{ user.address }}" class="form-control bg-dark text-light border-secondary">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+          </form>
+        </div>
+      </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Address</label>
-      <input name="address" value="{{ user.address }}" class="form-control">
-    </div>
-    <button class="btn btn-success">Save Changes</button>
-  </form>
+  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const editBtn = document.getElementById('edit-btn');
+  const editForm = document.getElementById('edit-form');
+
+  editBtn.addEventListener('click', function() {
+    if (editForm.style.display === 'none' || editForm.style.display === '') {
+      editForm.style.display = 'block';
+      editForm.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      editForm.style.display = 'none';
+    }
+  });
+});
+</script>
 {% endblock %}
-
-

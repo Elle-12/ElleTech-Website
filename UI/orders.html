@@ -14,7 +14,7 @@
     <tr>
       <td>
         {% if o.image %}
-        <img src="{{ url_for('static', filename='uploads/' + o.image) }}" alt="{{ o.product_name }}" class="product-img me-2">
+        <img src="{{ url_for('static', filename='uploads/' + o.image) }}" alt="{{ o.product_name }}" class="product-img me-2" style="width: 120px; height: 120px;  border-radius: 5px;">
         {% endif %}
         {{ o.product_name }}
       </td>
@@ -25,8 +25,7 @@
       <td>{{ o.status }}</td>
       <td>{{ o.order_date.strftime("%Y-%m-%d %H:%M") }}</td>
       <td>
-        {% if o.payment_status == 'unpaid' %}
-        <form method="POST" action="{{ url_for('update_order_payment', order_id=o.id) }}" class="d-inline">
+        <form method="POST" action="{{ url_for('update_order_payment', order_id=o.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to update the payment method?')">
           <select name="payment_method" class="form-select form-select-sm mb-1">
             <option value="Cash on Delivery" {% if o.payment_method == 'Cash on Delivery' %}selected{% endif %}>Cash on Delivery</option>
             <option value="GCash" {% if o.payment_method == 'GCash' %}selected{% endif %}>GCash</option>
@@ -34,7 +33,6 @@
           </select>
           <button type="submit" class="btn btn-sm btn-primary">Update Payment</button>
         </form>
-        {% endif %}
       </td>
     </tr>
     {% endfor %}

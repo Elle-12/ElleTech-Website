@@ -42,6 +42,12 @@ footer {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.card-img-top {
+  height: 250px;
+  width: 250px;
+  object-fit: cover;
+}
+
 /* Structure support for main layout */
 html, body {
   height: 100%;

@@ -12,6 +12,15 @@
 
   {% block head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .alert {
+      animation: autoDismiss 1s forwards;
+      animation-delay: 5s;
+    }
+    @keyframes autoDismiss {
+      to { opacity: 0; display: none; }
+    }
+  </style>
   {% endblock %}
 </head>
 
@@ -22,8 +31,8 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
     <div class="container">
       <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('home') }}">
-        <img src="{{ url_for('static', filename='img/logo.png') }}" 
-             alt="ElleTech Logo" class="me-2 rounded-circle" style="height:40px; width:40px;">
+        <img src="{{ url_for('static', filename='img/logo.png') }}"
+             alt="ElleTech Logo" class="me-2 rounded-circle" style="height:95px; width:95px;">
         ElleTech
       </a>
 
@@ -49,9 +58,14 @@
 
   <!-- 🔹 PAGE CONTENT -->
   <main class="flex-grow-1 container py-4">
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="alert alert-info text-center shadow-sm">{{ messages[0] }}</div>
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show text-center shadow-sm" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
       {% endif %}
     {% endwith %}
 

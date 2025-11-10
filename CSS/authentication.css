@@ -1,3 +1,4 @@
+
 .auth-container {
   display: flex !important;
   justify-content: center !important;
@@ -20,8 +21,8 @@
 }
 
 .auth-logo {
-  width: 90px !important;
-  height: auto !important;
+  width: 95px !important;
+  height: 95px !important;
   margin-bottom: 15px !important;
 }
 

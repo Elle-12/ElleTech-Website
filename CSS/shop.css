@@ -78,7 +78,8 @@ form button:hover {
 }
 
 .card img {
-  height: 200px;
+  height: 250px !important;
+  width: 250px !important;
   object-fit: cover;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -139,7 +140,8 @@ form button:hover {
 
 @media (max-width: 992px) {
   .card img {
-    height: 180px;
+    height: 225px !important;
+    width: 225px !important;
   }
 }
 
@@ -148,7 +150,8 @@ form button:hover {
     font-size: 1.6rem;
   }
   .card img {
-    height: 160px;
+    height: 200px !important;
+    width: 200px !important;
   }
   .input-group input,
   .input-group button {

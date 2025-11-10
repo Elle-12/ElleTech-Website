@@ -322,7 +322,7 @@ def about():
     return render_template('about.html', content=about_content)
 
 
-# PROFILE
+# PROFILE DISPLAY AND EDIT
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     r = require_login()
@@ -330,13 +330,20 @@ def profile():
         return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
-        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s WHERE id=%s",
+        profile_pic_filename = user.get('profile_pic')  # Keep existing
+        if 'profile_pic' in request.files:
+            file = request.files['profile_pic']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                profile_pic_filename = filename
+
+        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
                 (request.form.get('full_name'), request.form.get('contact_no'),
-                 request.form.get('address'), session['user_id']))
+                 request.form.get('address'), profile_pic_filename, session['user_id']))
         flash(profile_content['update_success'])
         return redirect(url_for('profile'))
     return render_template('profile.html', user=user, content=profile_content)
-
 
 # MEMBERSHIP
 @app.route('/membership', methods=['GET', 'POST'])
@@ -346,12 +353,58 @@ def membership():
         return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
-        membership = request.form.get('membership')
-        execute("UPDATE users SET membership=%s WHERE id=%s", (membership, session['user_id']))
+        membership_val = request.form.get('membership')
+        execute("UPDATE users SET membership=%s WHERE id=%s", (membership_val, session['user_id']))
         flash(membership_content['update_success'])
         return redirect(url_for('membership'))
     return render_template('membership.html', user=user, content=membership_content)
 
+# ORDERS PAGE
+@app.route('/orders', methods=['GET'])
+def orders():
+    r = require_login()
+    if r:
+        return r
+    orders = query_all("""SELECT o.*, p.name AS product_name, p.price, p.image
+                          FROM orders o
+                          JOIN products p ON o.product_id = p.id
+                          WHERE o.user_id=%s
+                          ORDER BY o.order_date DESC""",
+                       (session['user_id'],))
+    return render_template('orders.html', orders=orders, content=orders_content)
+                
+# PLACE ORDER
+@app.route('/place_order/<int:product_id>', methods=['POST'])
+def place_order(product_id):
+    r = require_login()
+    if r:
+        return r
+    product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
+    if not product:
+        flash("Product not found.")
+        return redirect(url_for('shop'))
+
+    try:
+        quantity = int(request.form.get('quantity', 1))
+    except ValueError:
+        quantity = 1
+
+    payment_method = request.form.get('payment_method', 'Cash on Delivery')
+
+    # ensure price numeric
+    try:
+        price = float(product.get('price', 0))
+    except Exception:
+        price = 0.0
+
+    total_price = price * quantity
+
+    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, payment_method, payment_status, order_date)
+               VALUES (%s, %s, %s, %s, %s, 'unpaid', NOW())""",
+            (session['user_id'], product_id, quantity, total_price, payment_method))
+
+    flash(orders_content['order_placed'])
+    return redirect(url_for('orders'))
 
 # PRODUCTS (ADMIN CRUD)
 @app.route('/admin_products', methods=['GET', 'POST'])
@@ -384,7 +437,7 @@ def admin_products(id=None):
                 image_filename = filename
 
         if not name:
-            flash('Product name is required.')
+            flash("Name is required.")
             return redirect(url_for('admin_products'))
 
         execute("""INSERT INTO products (name, description, price, stock_qty, category, image, created_at)
@@ -397,7 +450,7 @@ def admin_products(id=None):
     if id is not None:
         product = query_one("SELECT * FROM products WHERE id=%s", (id,))
         if not product:
-            flash('Product not found.')
+            flash("Product not found.")
             return redirect(url_for('admin_products'))
 
         if request.method == 'POST':
@@ -447,79 +500,6 @@ def admin_products_delete(id):
     return redirect(url_for('admin_products'))
 
 
-@app.route('/admin_products/bulk_delete', methods=['POST'])
-def admin_products_bulk_delete():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    selected_ids = request.form.getlist('selected[]')
-    if not selected_ids:
-        flash('No products selected.')
-        return redirect(url_for('admin_products'))
-
-    # Delete selected products
-    for id in selected_ids:
-        execute("DELETE FROM products WHERE id=%s", (id,))
-    flash(f'Deleted {len(selected_ids)} product(s).')
-    return redirect(url_for('admin_products'))
-
-
-# ADD ORDER
-@app.route('/order_add/<int:product_id>', methods=['POST'])
-def order_add(product_id):
-    r = require_login()
-    if r:
-        return r
-
-    product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
-    if not product:
-        flash("Product not found.")
-        return redirect(url_for('home'))
-
-    try:
-        quantity = int(request.form.get('quantity', 1))
-    except ValueError:
-        quantity = 1
-
-    payment_method = request.form.get('payment_method', 'Cash on Delivery')
-
-    # ensure price numeric
-    try:
-        price = float(product.get('price', 0))
-    except Exception:
-        price = 0.0
-
-    total_price = price * quantity
-
-    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, payment_method, payment_status, order_date)
-               VALUES (%s, %s, %s, %s, %s, 'unpaid', NOW())""",
-            (session['user_id'], product_id, quantity, total_price, payment_method))
-
-    flash(orders_content['order_placed'])
-    return redirect(url_for('orders'))
-
-
-# ORDERS PAGE
-@app.route('/orders', methods=['GET'])
-def orders():
-    r = require_login()
-    if r:
-        return r
-    orders = query_all("""SELECT o.*, p.name AS product_name, p.price, p.image
-                          FROM orders o
-                          JOIN products p ON o.product_id = p.id
-                          WHERE o.user_id=%s
-                          ORDER BY o.order_date DESC""",
-                       (session['user_id'],))
-    return render_template('orders.html', orders=orders, content=orders_content)
-
-
 # UPDATE ORDER PAYMENT METHOD
 @app.route('/update_order_payment/<int:order_id>', methods=['POST'])
 def update_order_payment(order_id):
@@ -538,10 +518,10 @@ def update_order_payment(order_id):
         flash("Invalid payment method.")
         return redirect(url_for('orders'))
 
-    execute("UPDATE orders SET payment_method=%s WHERE id=%s", (payment_method, order_id))
+    execute("UPDATE orders SET payment_method=%s, payment_status='unpaid' WHERE id=%s", (payment_method, order_id))
     flash("Payment method updated successfully.")
     return redirect(url_for('orders'))
-        
+
 
 # CONFIRM PAYMENT
 @app.route('/confirm_payment/<int:order_id>', methods=['POST'])
@@ -576,6 +556,7 @@ def admin_dashboard():
 
     # Admin check
     if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
 
     # Get stats for dashboard - handle None cases
@@ -670,7 +651,6 @@ def admin_update_order_status(order_id):
         flash('Order status updated successfully.')
 
     return redirect(url_for('admin_orders'))
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

@@ -1,4 +1,5 @@
 
+
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #0e141b;
@@ -29,6 +30,12 @@ h1, h2, h3 {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.card-img-top {
+  height: 250px;
+  width: 250px;
+  object-fit: cover;
+}
+
 /* Footer using flexbox */
 .footer {
   flex-shrink: 0;
@@ -39,4 +46,3 @@ h1, h2, h3 {
   font-size: 0.9em;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
-
