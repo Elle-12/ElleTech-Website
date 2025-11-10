@@ -8,7 +8,7 @@
 <h2 class="text-light mb-4">My Orders</h2>
 
 <table class="table table-dark table-hover align-middle">
-  <thead><tr><th>Product</th><th>Qty</th><th>Total Price</th><th>Payment Method</th><th>Payment Status</th><th>Order Status</th><th>Date</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Product</th><th>Qty</th><th>Original Price</th><th>Discount</th><th>Final Price</th><th>Payment Method</th><th>Payment Status</th><th>Order Status</th><th>Date</th><th>Actions</th></tr></thead>
   <tbody>
     {% for o in orders %}
     <tr>
@@ -19,6 +19,14 @@
         {{ o.product_name }}
       </td>
       <td>{{ o.quantity }}</td>
+      <td>₱{{ "%.2f"|format(o.original_price or o.total_price) }}</td>
+      <td>
+        {% if o.discount_applied %}
+        {{ "%.0f"|format(o.discount_applied * 100) }}% (₱{{ "%.2f"|format((o.original_price or o.total_price) * o.discount_applied) }})
+        {% else %}
+        0%
+        {% endif %}
+      </td>
       <td>₱{{ "%.2f"|format(o.total_price) }}</td>
       <td>{{ o.payment_method or "N/A" }}</td>
       <td>{{ o.payment_status or "N/A" }}</td>
@@ -46,11 +54,11 @@
   <h5 class="text-warning">Payment Process for Order #{{ o.id }}</h5>
   <p>Please complete your payment using {{ o.payment_method }}.</p>
   {% if o.payment_method == 'GCash' %}
-  <p><strong>GCash Number:</strong> 09123456789</p>
+  <p><strong>GCash Number:</strong> 09917452192</p>
   <p><strong>Amount:</strong> ₱{{ "%.2f"|format(o.total_price) }}</p>
   <p>Send the payment to the above number and reply with the reference number to confirm.</p>
   {% elif o.payment_method == 'PayMaya' %}
-  <p><strong>PayMaya Account:</strong> paymaya@example.com</p>
+  <p><strong>PayMaya Account:</strong> 09917452192</p>
   <p><strong>Amount:</strong> ₱{{ "%.2f"|format(o.total_price) }}</p>
   <p>Send the payment to the above account and reply with the transaction ID to confirm.</p>
   {% endif %}
@@ -66,4 +74,3 @@
 {% endfor %}
 
 {% endblock %}
-

@@ -1,9 +1,10 @@
 import os
-import mysql.connector
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+from otp import send_and_store_otp, verify_otp
+from db import get_db, query_all, query_one, execute
 
 # Load environment variables
 load_dotenv()
@@ -127,75 +128,6 @@ admin_dashboard_content = {
     'access_denied': 'Access denied. Admins only.'
 }
 
-# DATABASE CONNECTION
-def get_db():
-    try:
-        # Convert port to int if provided
-        db_port = os.getenv("DB_PORT")
-        if db_port:
-            try:
-                db_port = int(db_port)
-            except ValueError:
-                # keep as string and let connector decide
-                pass
-
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            port=db_port,
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            autocommit=False  # control commits explicitly
-        )
-        return conn
-    except mysql.connector.Error as err:
-        print("Database connection error:", err)
-        raise
-
-
-# DATABASE HELPERS
-def query_all(query, params=()):
-    conn = get_db()
-    try:
-        cur = conn.cursor(dictionary=True)
-        cur.execute(query, params)
-        data = cur.fetchall()
-        return data
-    finally:
-        cur.close()
-        conn.close()
-
-
-def query_one(query, params=()):
-    conn = get_db()
-    try:
-        cur = conn.cursor(dictionary=True)
-        cur.execute(query, params)
-        row = cur.fetchone()
-        return row
-    finally:
-        cur.close()
-        conn.close()
-
-
-def execute(query, params=()):
-    """Execute a write query and return lastrowid (if available)."""
-    conn = get_db()
-    try:
-        cur = conn.cursor()
-        cur.execute(query, params)
-        conn.commit()
-        lastrowid = getattr(cur, 'lastrowid', None)
-        return lastrowid
-    except Exception as e:
-        conn.rollback()
-        print("Database execute error:", e)
-        raise
-    finally:
-        cur.close()
-        conn.close()
-
-
 # UTIL: login required decorator-like check (simple)
 def require_login():
     if 'user_id' not in session:
@@ -229,16 +161,38 @@ def login():
         password = request.form.get('password', '')
         user = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, username))
         if user and check_password_hash(user['password_hash'], password):
+            # Send OTP instead of logging in directly
+            if send_and_store_otp(user['id'], user['email'], 'login'):
+                session['pending_user_id'] = user['id']
+                return redirect(url_for('otp_verify'))
+            else:
+                msg = 'Failed to send OTP. Please try again.'
+        else:
+            msg = login_content['invalid_credentials']
+    return render_template('login.html', message=msg, content=login_content)
+
+
+# OTP VERIFICATION
+@app.route('/otp_verify', methods=['GET', 'POST'])
+def otp_verify():
+    msg = ''
+    if request.method == 'POST':
+        otp_code = request.form.get('otp', '').strip()
+        user_id = session.get('pending_user_id')
+        if user_id and verify_otp(user_id, otp_code, 'login'):
+            # OTP verified, complete login
+            user = query_one("SELECT * FROM users WHERE id=%s", (user_id,))
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user.get('role', 'user')
+            session.pop('pending_user_id', None)
             if session['role'] == 'admin':
                 return redirect(url_for('admin_dashboard'))
             else:
                 return redirect(url_for('home'))
         else:
-            msg = login_content['invalid_credentials']
-    return render_template('login.html', message=msg, content=login_content)
+            msg = 'Invalid or expired OTP.'
+    return render_template('otp_verify.html', message=msg)
 
 
 # REGISTER
@@ -354,10 +308,42 @@ def membership():
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
         membership_val = request.form.get('membership')
-        execute("UPDATE users SET membership=%s WHERE id=%s", (membership_val, session['user_id']))
-        flash(membership_content['update_success'])
+        payment_method = request.form.get('payment_method')
+
+        # If upgrading to paid membership, set payment status to unpaid
+        if membership_val in ['Silver', 'Gold', 'Platinum']:
+            execute("UPDATE users SET membership=%s, membership_payment_status='unpaid' WHERE id=%s",
+                    (membership_val, session['user_id']))
+            flash("Membership upgrade initiated. Please complete payment.")
+        else:
+            # Basic is free
+            execute("UPDATE users SET membership=%s, membership_payment_status='paid' WHERE id=%s",
+                    (membership_val, session['user_id']))
+            flash(membership_content['update_success'])
         return redirect(url_for('membership'))
     return render_template('membership.html', user=user, content=membership_content)
+
+# CONFIRM MEMBERSHIP PAYMENT
+@app.route('/confirm_membership_payment', methods=['POST'])
+def confirm_membership_payment():
+    r = require_login()
+    if r:
+        return r
+
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+    if not user or user['membership_payment_status'] == 'paid':
+        flash("Invalid request.")
+        return redirect(url_for('membership'))
+
+    reference = request.form.get('reference', '').strip()
+    if not reference:
+        flash("Reference/Transaction ID is required.")
+        return redirect(url_for('membership'))
+
+    # Update membership payment status to paid
+    execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+    flash("Membership payment confirmed. Welcome to " + user['membership'] + "!")
+    return redirect(url_for('membership'))
 
 # ORDERS PAGE
 @app.route('/orders', methods=['GET'])
@@ -379,6 +365,7 @@ def place_order(product_id):
     r = require_login()
     if r:
         return r
+
     product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
     if not product:
         flash("Product not found.")
@@ -399,11 +386,72 @@ def place_order(product_id):
 
     total_price = price * quantity
 
+    # Apply membership discounts
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+    discount = 0.0
+    if user and user['membership'] and user['membership_payment_status'] == 'paid':
+        if user['membership'] == 'Basic':
+            discount = 0.05  # 5% welcome discount
+        elif user['membership'] == 'Silver':
+            discount = 0.10  # 10% birthday discount
+        elif user['membership'] == 'Gold':
+            discount = 0.10  # 10% birthday discount
+        elif user['membership'] == 'Platinum':
+            discount = 0.20  # 20% store-wide discount
+
+    discounted_price = total_price * (1 - discount)
+
     execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, payment_method, payment_status, order_date)
                VALUES (%s, %s, %s, %s, %s, 'unpaid', NOW())""",
-            (session['user_id'], product_id, quantity, total_price, payment_method))
+            (session['user_id'], product_id, quantity, discounted_price, payment_method))
 
     flash(orders_content['order_placed'])
+    return redirect(url_for('orders'))
+
+# CONFIRM PAYMENT
+@app.route('/confirm_payment/<int:order_id>', methods=['POST'])
+def confirm_payment(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the order belongs to the user
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    if not order:
+        flash("Order not found.")
+        return redirect(url_for('orders'))
+
+    reference = request.form.get('reference', '').strip()
+    if not reference:
+        flash("Reference/Transaction ID is required.")
+        return redirect(url_for('orders'))
+
+    # Update payment status to paid
+    execute("UPDATE orders SET payment_status='paid' WHERE id=%s", (order_id,))
+    flash("Payment confirmed successfully. Reference: " + reference)
+    return redirect(url_for('orders'))
+
+# UPDATE ORDER PAYMENT METHOD
+@app.route('/update_order_payment/<int:order_id>', methods=['POST'])
+def update_order_payment(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the order belongs to the user
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    if not order:
+        flash("Order not found.")
+        return redirect(url_for('orders'))
+
+    payment_method = request.form.get('payment_method')
+    if payment_method not in ['Cash on Delivery', 'GCash', 'PayMaya']:
+        flash("Invalid payment method.")
+        return redirect(url_for('orders'))
+
+    # Update payment method
+    execute("UPDATE orders SET payment_method=%s WHERE id=%s", (payment_method, order_id))
+    flash("Payment method updated successfully.")
     return redirect(url_for('orders'))
 
 # PRODUCTS (ADMIN CRUD)
@@ -437,7 +485,6 @@ def admin_products(id=None):
                 image_filename = filename
 
         if not name:
-            flash("Name is required.")
             return redirect(url_for('admin_products'))
 
         execute("""INSERT INTO products (name, description, price, stock_qty, category, image, created_at)
@@ -500,109 +547,6 @@ def admin_products_delete(id):
     return redirect(url_for('admin_products'))
 
 
-# UPDATE ORDER PAYMENT METHOD
-@app.route('/update_order_payment/<int:order_id>', methods=['POST'])
-def update_order_payment(order_id):
-    r = require_login()
-    if r:
-        return r
-
-    # Ensure the order belongs to the user
-    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
-    if not order:
-        flash("Order not found.")
-        return redirect(url_for('orders'))
-
-    payment_method = request.form.get('payment_method')
-    if payment_method not in ['Cash on Delivery', 'GCash', 'PayMaya']:
-        flash("Invalid payment method.")
-        return redirect(url_for('orders'))
-
-    execute("UPDATE orders SET payment_method=%s, payment_status='unpaid' WHERE id=%s", (payment_method, order_id))
-    flash("Payment method updated successfully.")
-    return redirect(url_for('orders'))
-
-
-# CONFIRM PAYMENT
-@app.route('/confirm_payment/<int:order_id>', methods=['POST'])
-def confirm_payment(order_id):
-    r = require_login()
-    if r:
-        return r
-
-    # Ensure the order belongs to the user
-    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
-    if not order:
-        flash("Order not found.")
-        return redirect(url_for('orders'))
-
-    reference = request.form.get('reference', '').strip()
-    if not reference:
-        flash("Reference/Transaction ID is required.")
-        return redirect(url_for('orders'))
-
-    # Update payment status to paid
-    execute("UPDATE orders SET payment_status='paid' WHERE id=%s", (order_id,))
-    flash("Payment confirmed successfully. Reference: " + reference)
-    return redirect(url_for('orders'))
-
-
-# ADMIN DASHBOARD
-@app.route('/admin', methods=['GET'])
-def admin_dashboard():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    # Get stats for dashboard - handle None cases
-    total_products_row = query_one("SELECT COUNT(*) as count FROM products")
-    total_orders_row = query_one("SELECT COUNT(*) as count FROM orders")
-    total_users_row = query_one("SELECT COUNT(*) as count FROM users")
-
-    total_products = total_products_row['count'] if total_products_row else 0
-    total_orders = total_orders_row['count'] if total_orders_row else 0
-    total_users = total_users_row['count'] if total_users_row else 0
-
-    return render_template('admin/dashboard.html',
-                           total_products=total_products,
-                           total_orders=total_orders,
-                           total_users=total_users,
-                           content=admin_dashboard_content)
-
-
-@app.route('/admin_shop')
-def admin_shop():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    category_filter = request.args.get('category', '')
-
-    # Fetch products based on category filter
-    if category_filter:
-        products = query_all("SELECT * FROM products WHERE category=%s ORDER BY created_at DESC", (category_filter,))
-    else:
-        products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-
-    # Fetch unique categories (if category column exists)
-    try:
-        categories = [row['category'] for row in query_all("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")]
-    except Exception:
-        categories = []
-
-    return render_template('admin/admin_shop.html', products=products, categories=categories, selected_category=category_filter, content=shop_content)
-
-
 # ADMIN ORDERS
 @app.route('/admin_orders', methods=['GET'])
 def admin_orders():
@@ -623,6 +567,50 @@ def admin_orders():
                           ORDER BY o.order_date DESC""")
 
     return render_template('admin/admin_orders.html', orders=orders, content=admin_dashboard_content)
+
+
+# ADMIN SHOP
+@app.route('/admin_shop')
+def admin_shop():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    # Fetch all products for admin shop view
+    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    return render_template('admin/admin_shop.html', products=products, content=admin_dashboard_content)
+
+
+# ADMIN DASHBOARD
+@app.route('/admin_dashboard')
+def admin_dashboard():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    total_products_row = query_one("SELECT COUNT(*) as count FROM products")
+    total_orders_row = query_one("SELECT COUNT(*) as count FROM orders")
+    total_users_row = query_one("SELECT COUNT(*) as count FROM users")
+
+    total_products = total_products_row['count'] if total_products_row else 0
+    total_orders = total_orders_row['count'] if total_orders_row else 0
+    total_users = total_users_row['count'] if total_users_row else 0
+
+    return render_template('admin/dashboard.html',
+                           total_products=total_products,
+                           total_orders=total_orders,
+                           total_users=total_users,
+                           content=admin_dashboard_content)
 
 
 # UPDATE ORDER STATUS (ADMIN)
@@ -651,6 +639,7 @@ def admin_update_order_status(order_id):
         flash('Order status updated successfully.')
 
     return redirect(url_for('admin_orders'))
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

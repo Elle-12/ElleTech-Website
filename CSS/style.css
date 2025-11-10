@@ -1,6 +1,6 @@
 body {
   font-family: 'Poppins', sans-serif;
-  background-color: #0e141b;
+  background-color: #000000;
   color: #e3e6eb;
   min-height: 100vh;
 }
@@ -10,16 +10,16 @@ h1, h2, h3 {
 }
 
 .navbar {
-  background-color: #000 !important; 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #6c757d !important;
+  border-bottom: 1px solid rgba(65, 64, 64, 0.1);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .navbar .nav-link {
-  color: #e3e6eb !important;
+  color: #ffffff !important;
 }
 .navbar .nav-link:hover {
-  color: #3f9ae4 !important;
+  color: #000000 !important;
 }
 
 footer {

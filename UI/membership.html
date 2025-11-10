@@ -4,23 +4,63 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='membership.css') }}">
 {% endblock %}
 
-
 {% block content %}
 <h2 class="text-light mb-4">Membership Status</h2>
 
+<div class="card bg-dark p-4 mb-4">
+  <h4 class="text-light">Current Membership: {{ user.membership or "None" }}</h4>
+  {% if user.membership_payment_status == 'unpaid' and user.membership in ['Silver', 'Gold', 'Platinum'] %}
+  <p class="text-warning">Payment pending for {{ user.membership }} membership.</p>
+  {% endif %}
+</div>
+
+<div class="card bg-dark p-4 mb-4">
+  <h4 class="text-light mb-3">Membership Levels & Perks</h4>
+  <table class="table table-dark table-striped">
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th>Perks / Benefits</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Basic</strong></td>
+        <td>• Welcome discount (5%) on first purchase<br>• Access to member-only newsletter and promotions</td>
+      </tr>
+      <tr>
+        <td><strong>Silver</strong></td>
+        <td>• All Basic perks<br>• Birthday discount (10%)<br>• Early access to sales or promos</td>
+      </tr>
+      <tr>
+        <td><strong>Gold</strong></td>
+        <td>• All Silver perks<br>• Free shipping on orders over ₱1,500<br>• Priority customer support (faster response)<br>• Access to exclusive tech guides or tutorials</td>
+      </tr>
+      <tr>
+        <td><strong>Platinum</strong></td>
+        <td>• All Gold perks<br>• 20% discount store-wide<br>• Free gadget cleaning or maintenance once a year<br>• Exclusive early access to new products<br>• Personalized tech recommendations or consultation</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <div class="card bg-dark p-4">
-  <p><strong>Current Membership:</strong> {{ user.membership or "None" }}</p>
+  <h4 class="text-light mb-3">Update Membership</h4>
   <form method="POST">
     <div class="row g-2">
       <div class="col-md-4">
         <select name="membership" class="form-select">
-          <option value="Basic">Basic</option>
-          <option value="Silver">Silver</option>
-          <option value="Gold">Gold</option>
-          <option value="Platinum">Platinum</option>
+          <option value="Basic">Basic (Free)</option>
+          <option value="Silver">Silver (Paid)</option>
+          <option value="Gold">Gold (Paid)</option>
+          <option value="Platinum">Platinum (Paid)</option>
         </select>
-
-        
+      </div>
+      <div class="col-md-4">
+        <select name="payment_method" class="form-select">
+          <option value="GCash">GCash</option>
+          <option value="PayMaya">PayMaya</option>
+        </select>
       </div>
       <div class="col-md-4">
         <button class="btn btn-primary">Update Membership</button>
@@ -28,4 +68,31 @@
     </div>
   </form>
 </div>
+
+{% if user.membership_payment_status == 'unpaid' and user.membership in ['Silver', 'Gold', 'Platinum'] %}
+<div class="card bg-warning p-4 mt-4">
+  <div class="d-flex justify-content-between align-items-start">
+    <h5 class="text-dark mb-3">Complete Payment for {{ user.membership }} Membership</h5>
+    <button type="button" class="btn-close" aria-label="Close" onclick="this.closest('.card').style.display='none'"></button>
+  </div>
+  <p>Please complete your payment to activate your membership perks.</p>
+  {% if user.membership == 'Silver' %}
+  <p><strong>Amount:</strong> ₱500</p>
+  {% elif user.membership == 'Gold' %}
+  <p><strong>Amount:</strong> ₱1,000</p>
+  {% elif user.membership == 'Platinum' %}
+  <p><strong>Amount:</strong> ₱2,000</p>
+  {% endif %}
+  <p><strong>GCash Number:</strong> 09917452192</p>
+  <p><strong>PayMaya Account:</strong> 09917452192</p>
+  <form method="POST" action="{{ url_for('confirm_membership_payment') }}" class="mt-2">
+    <div class="mb-2">
+      <label for="reference" class="form-label text-dark">Reference/Transaction ID:</label>
+      <input type="text" name="reference" id="reference" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Confirm Payment</button>
+  </form>
+</div>
+{% endif %}
+
 {% endblock %}
