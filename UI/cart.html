@@ -1,0 +1,391 @@
+{% extends "layout.html" %}
+{% block head %}
+<style>
+.cart-hero {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 3rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cart-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 30% 70%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 70% 30%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+  animation: float 18s ease-in-out infinite;
+}
+
+.cart-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cart-subtitle {
+  font-size: 1.2rem;
+  font-weight: 300;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.cart-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.cart-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.cart-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.cart-item:hover::before {
+  left: 100%;
+}
+
+.cart-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.product-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.product-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-right: 1rem;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.cart-item:hover .product-image {
+  transform: scale(1.05);
+}
+
+.product-details h5 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+}
+
+.product-details p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.quantity-badge {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.price-info {
+  text-align: right;
+}
+
+.unit-price {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.25rem;
+}
+
+.total-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.payment-method {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.remove-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.remove-btn:hover {
+  background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+}
+
+.cart-summary {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cart-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  opacity: 0.5;
+}
+
+.summary-content {
+  position: relative;
+  z-index: 2;
+}
+
+.grand-total-label {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.grand-total-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1.5rem;
+}
+
+.checkout-btn {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 10px 30px rgba(79, 172, 254, 0.3);
+}
+
+.checkout-btn:hover {
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(79, 172, 254, 0.4);
+}
+
+.empty-cart {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  color: rgba(102, 126, 234, 0.5);
+  margin-bottom: 1.5rem;
+}
+
+.empty-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 1rem;
+}
+
+.empty-text {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2rem;
+}
+
+.shop-now-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shop-now-btn:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+  .cart-title {
+    font-size: 2rem;
+  }
+
+  .product-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .product-image {
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+
+  .price-info {
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .grand-total-amount {
+    font-size: 2rem;
+  }
+
+  .checkout-btn {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- CART HERO -->
+<section class="cart-hero">
+  <div class="container">
+    <h1 class="cart-title">Your Shopping Cart</h1>
+    <p class="cart-subtitle">Review your items and proceed to checkout</p>
+  </div>
+</section>
+
+<!-- CART CONTENT -->
+<div class="container">
+  {% if cart_items %}
+  <div class="cart-container">
+    {% for item in cart_items %}
+    <div class="cart-item">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <div class="product-info">
+            {% if item.image %}
+            <img src="{{ url_for('static', filename='uploads/' + item.image) }}" alt="{{ item.product_name }}" class="product-image">
+            {% else %}
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ item.product_name }}" class="product-image">
+            {% endif %}
+            <div class="product-details">
+              <h5>{{ item.product_name }}</h5>
+              <p>{{ item.description or "No description available." }}</p>
+              <span class="quantity-badge">Qty: {{ item.quantity }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="price-info">
+            <div class="unit-price">₱{{ "%.2f"|format(item.price) }} each</div>
+            <div class="total-price">₱{{ "%.2f"|format(item.total_price) }}</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <span class="payment-method">{{ item.payment_method }}</span>
+        </div>
+        <div class="col-md-1">
+          <form method="POST" action="{{ url_for('remove_from_cart', cart_id=item.id) }}" class="d-inline" onsubmit="return confirm('Remove this item from cart?')">
+            <button type="submit" class="remove-btn">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- CART SUMMARY -->
+  <div class="cart-summary">
+    <div class="summary-content">
+      <div class="grand-total-label">Grand Total</div>
+      <div class="grand-total-amount">₱{{ "%.2f"|format(grand_total) }}</div>
+      <form method="POST" action="{{ url_for('checkout') }}" class="d-inline">
+        <button type="submit" class="checkout-btn">
+          <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
+        </button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-cart">
+    <i class="fas fa-shopping-cart empty-icon"></i>
+    <h3 class="empty-title">Your cart is empty</h3>
+    <p class="empty-text">Looks like you haven't added any items to your cart yet. Start shopping to fill it up!</p>
+    <a href="{{ url_for('shop') }}" class="shop-now-btn">
+      <i class="fas fa-shopping-bag me-2"></i>Start Shopping
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

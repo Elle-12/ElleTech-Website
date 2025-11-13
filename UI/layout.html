@@ -4,82 +4,423 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "ElleTech" }}</title>
+  <title>{{ title or "ElleTech - Modern Tech Solutions" }}</title>
 
-  <!-- Bootstrap -->
+  <!-- Modern Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <!-- Bootstrap 5.3 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom Styles -->
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
 
   {% block head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% endblock %}
+
   <style>
-    .alert {
-      animation: autoDismiss 1s forwards;
-      animation-delay: 5s;
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+      --warning-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      --dark-bg: #0f0f23;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(255, 255, 255, 0.1);
     }
-    @keyframes autoDismiss {
-      to { opacity: 0; display: none; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--dark-bg);
+      color: #ffffff;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 25% 25%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(255, 119, 198, 0.1) 0%, transparent 50%);
+    }
+
+    /* Modern Navbar */
+    .navbar {
+      background: rgba(15, 15, 35, 0.95) !important;
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .navbar-brand img {
+      filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
+    }
+
+    .nav-link {
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .nav-link:hover {
+      color: #667eea !important;
+      transform: translateY(-2px);
+    }
+
+    .nav-link.active {
+      color: #667eea !important;
+      font-weight: 600;
+    }
+
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 2px;
+      background: var(--primary-gradient);
+      border-radius: 1px;
+    }
+
+    /* Alert Animations */
+    .alert {
+      border: none;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      animation: slideIn 0.5s ease-out;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* Modern Cards */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    /* Modern Buttons */
+    .btn {
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn-primary {
+      background: var(--primary-gradient);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-success {
+      background: var(--success-gradient);
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+
+    .btn-danger {
+      background: var(--danger-gradient);
+      box-shadow: 0 4px 15px rgba(255, 154, 158, 0.3);
+    }
+
+    .btn-warning {
+      background: var(--warning-gradient);
+      box-shadow: 0 4px 15px rgba(255, 236, 210, 0.3);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Form Controls */
+    .form-control, .form-select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: #ffffff;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+      color: #ffffff;
+    }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* Footer */
+    footer {
+      background: rgba(15, 15, 35, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border-color);
+      margin-top: auto;
+    }
+
+    /* Loading Animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #667eea;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .navbar-brand {
+        font-size: 1.2rem;
+      }
+
+      .navbar-brand img {
+        height: 60px !important;
+        width: 60px !important;
+      }
+
+      .card {
+        margin-bottom: 1rem;
+      }
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--dark-bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.5);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.7);
     }
   </style>
-  {% endblock %}
 </head>
 
-<body class="bg-dark text-light d-flex flex-column min-vh-100">
+<body class="d-flex flex-column min-vh-100">
 
   {% if 'user_id' in session %}
-  <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-secondary shadow-sm sticky-top">
-    <div class="container">
-      <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('home') }}">
+  <!-- Modern Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
         <img src="{{ url_for('static', filename='img/logo.png') }}"
-             alt="ElleTech Logo" class="me-2 rounded-circle" style="height:95px; width:95px;">
-        ElleTech
+             alt="ElleTech Logo" class="me-3 rounded-circle" style="height: 50px; width: 50px; object-fit: cover;">
+        <span class="d-none d-sm-inline">ElleTech</span>
       </a>
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <i class="fas fa-bars text-light"></i>
       </button>
-
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto text-center">
-          <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link {% if request.endpoint == 'home' %}active{% endif %}">Home</a></li>
-          <li class="nav-item"><a href="{{ url_for('shop') }}" class="nav-link {% if request.endpoint == 'shop' %}active{% endif %}">Shop</a></li>
-          <li class="nav-item"><a href="{{ url_for('orders') }}" class="nav-link {% if request.endpoint == 'orders' %}active{% endif %}">Orders</a></li>
-          <li class="nav-item"><a href="{{ url_for('membership') }}" class="nav-link {% if request.endpoint == 'membership' %}active{% endif %}">Membership</a></li>
-          <li class="nav-item"><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">Profile</a></li>
-          <li class="nav-item"><a href="{{ url_for('about') }}" class="nav-link {% if request.endpoint == 'about' %}active{% endif %}">About</a></li>
-          <li class="nav-item"><a href="{{ url_for('logout') }}" class="nav-link text-warning">Logout</a></li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('home') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'home' %}active{% endif %}">
+              <i class="fas fa-home me-1"></i>Home
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('shop') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'shop' %}active{% endif %}">
+              <i class="fas fa-shopping-bag me-1"></i>Shop
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('cart') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'cart' %}active{% endif %}">
+              <i class="fas fa-shopping-cart me-1"></i>Cart
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('orders') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'orders' %}active{% endif %}">
+              <i class="fas fa-list me-1"></i>Orders
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('membership') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'membership' %}active{% endif %}">
+              <i class="fas fa-crown me-1"></i>Membership
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('profile') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'profile' %}active{% endif %}">
+              <i class="fas fa-user me-1"></i>Profile
+            </a>
+          </li>
+          <li class="nav-item me-2">
+            <a href="{{ url_for('about') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'about' %}active{% endif %}">
+              <i class="fas fa-info-circle me-1"></i>About
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('logout') }}" class="nav-link px-3 py-2 text-warning">
+              <i class="fas fa-sign-out-alt me-1"></i>Logout
+            </a>
+          </li>
         </ul>
       </div>
     </div>
   </nav>
   {% endif %}
 
-  <!-- 🔹 PAGE CONTENT -->
-  <main class="flex-grow-1 container py-4">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show text-center shadow-sm" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+  <!-- Main Content -->
+  <main class="flex-grow-1">
+    <div class="container-fluid px-4 py-4">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show text-center mb-4" role="alert">
+            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'error' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
 
-    {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
+    </div>
   </main>
 
-  <!-- FOOTER -->
-  <footer class="text-center py-3 mt-auto border-top border-secondary text-secondary">
+  <!-- Modern Footer -->
+  <footer class="text-center py-4 mt-auto">
     <div class="container">
-      <p class="mb-0">© 2025 <span class="text-info fw-bold">ElleTech</span> | All Rights Reserved</p>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <h5 class="text-info mb-3">
+            <i class="fas fa-store me-2"></i>ElleTech
+          </h5>
+          <p class="text-muted small">Your premier destination for cutting-edge technology and innovative solutions.</p>
+        </div>
+        <div class="col-md-4 mb-3">
+          <h6 class="text-light mb-3">Quick Links</h6>
+          <ul class="list-unstyled small">
+            <li><a href="{{ url_for('home') }}" class="text-muted text-decoration-none">Home</a></li>
+            <li><a href="{{ url_for('shop') }}" class="text-muted text-decoration-none">Shop</a></li>
+            <li><a href="{{ url_for('about') }}" class="text-muted text-decoration-none">About Us</a></li>
+          </ul>
+        </div>
+        <div class="col-md-4 mb-3">
+          <h6 class="text-light mb-3">Contact Info</h6>
+          <p class="text-muted small mb-1">
+            <i class="fas fa-phone me-2"></i>+63 917 452 192
+          </p>
+          <p class="text-muted small mb-1">
+            <i class="fas fa-envelope me-2"></i>support@elletech.com
+          </p>
+          <p class="text-muted small">
+            <i class="fas fa-map-marker-alt me-2"></i>Philippines
+          </p>
+        </div>
+      </div>
+      <hr class="my-4" style="border-color: var(--border-color);">
+      <p class="mb-0 text-muted small">
+        <i class="fas fa-copyright me-1"></i>2025 ElleTech. All Rights Reserved.
+        <span class="ms-2">
+          Made with <i class="fas fa-heart text-danger"></i> for tech enthusiasts
+        </span>
+      </p>
     </div>
   </footer>
 
-  <!-- Bootstrap JS -->
+  <!-- Bootstrap JS & Custom Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Auto-dismiss alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+          const bsAlert = new bootstrap.Alert(alert);
+          bsAlert.close();
+        });
+      }, 5000);
+    });
+
+    // Smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Add loading animation to buttons
+    document.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        if (this.form && !this.form.checkValidity()) return;
+        const originalText = this.innerHTML;
+        this.innerHTML = '<span class="loading me-2"></span>Processing...';
+        this.disabled = true;
+        setTimeout(() => {
+          this.innerHTML = originalText;
+          this.disabled = false;
+        }, 2000);
+      });
+    });
+  </script>
 </body>
 </html>

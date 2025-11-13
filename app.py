@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-from otp import send_and_store_otp, verify_otp
+from otp import send_otp_email, generate_otp, verify_otp, store_otp, send_and_store_otp
 from db import get_db, query_all, query_one, execute
 
 # Load environment variables
@@ -146,53 +146,33 @@ def require_admin():
 
 @app.route('/')
 def index():
-    # Redirect based on login status
     if 'user_id' not in session:
-        return redirect(url_for('home'))
-    return redirect(url_for('login'))
+        products = query_all("SELECT * FROM products ORDER BY created_at DESC LIMIT 4")
+        return render_template('landing.html', featured=products)
+    return redirect(url_for('home'))
 
-
-# LOGIN
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ''
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        user = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, username))
-        if user and check_password_hash(user['password_hash'], password):
-            # Send OTP instead of logging in directly
-            if send_and_store_otp(user['id'], user['email'], 'login'):
-                session['pending_user_id'] = user['id']
-                return redirect(url_for('otp_verify'))
+        try:
+            user = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, username))
+            if user and check_password_hash(user['password_hash'], password):
+                # Directly log in without OTP
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['role'] = user.get('role', 'user')
+                if session['role'] == 'admin':
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    return redirect(url_for('home'))
             else:
-                msg = 'Failed to send OTP. Please try again.'
-        else:
-            msg = login_content['invalid_credentials']
+                msg = login_content['invalid_credentials']
+        except Exception as e:
+            msg = 'Database connection error. Please try again later.'
     return render_template('login.html', message=msg, content=login_content)
-
-
-# OTP VERIFICATION
-@app.route('/otp_verify', methods=['GET', 'POST'])
-def otp_verify():
-    msg = ''
-    if request.method == 'POST':
-        otp_code = request.form.get('otp', '').strip()
-        user_id = session.get('pending_user_id')
-        if user_id and verify_otp(user_id, otp_code, 'login'):
-            # OTP verified, complete login
-            user = query_one("SELECT * FROM users WHERE id=%s", (user_id,))
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user.get('role', 'user')
-            session.pop('pending_user_id', None)
-            if session['role'] == 'admin':
-                return redirect(url_for('admin_dashboard'))
-            else:
-                return redirect(url_for('home'))
-        else:
-            msg = 'Invalid or expired OTP.'
-    return render_template('otp_verify.html', message=msg)
 
 
 # REGISTER
@@ -218,12 +198,67 @@ def register():
             msg = 'Username or email already exists.'
             return render_template('register.html', message=msg, content=register_content)
 
-        execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
-                   VALUES (%s,%s,%s,%s,%s,%s,'user')""",
-                (full_name, email, username, password_hash, contact_no, address))
-        flash(register_content['success_message'])
-        return redirect(url_for('login'))
+        # Generate OTP and send it
+        otp_code = generate_otp()
+        if send_otp_email(email, otp_code, "Your OTP for ElleTech Registration"):
+            # Store OTP temporarily in session (since user not created yet)
+            session['pending_registration'] = {
+                'full_name': full_name,
+                'email': email,
+                'username': username,
+                'password_hash': password_hash,
+                'contact_no': contact_no,
+                'address': address,
+                'otp_code': otp_code
+            }
+            return redirect(url_for('otp_verify'))
+        else:
+            msg = 'Failed to send OTP. Please try again.'
+            return render_template('register.html', message=msg, content=register_content)
+
     return render_template('register.html', message=msg, content=register_content)
+
+
+# OTP VERIFICATION
+@app.route('/otp_verify', methods=['GET', 'POST'])
+def otp_verify():
+    msg = ''
+    if request.method == 'POST':
+        otp_code = request.form.get('otp', '').strip()
+
+        # Check for pending registration
+        pending_reg = session.get('pending_registration')
+        if pending_reg and pending_reg['otp_code'] == otp_code:
+            # Check if email already exists
+            existing = query_one("SELECT * FROM users WHERE email=%s", (pending_reg['email'],))
+            if existing:
+                msg = 'Email already exists.'
+                session.pop('pending_registration', None)
+                return render_template('otp_verify.html', message=msg)
+            # Create the user
+            user_id = execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
+                                 VALUES (%s,%s,%s,%s,%s,%s,'user')""",
+                              (pending_reg['full_name'], pending_reg['email'], pending_reg['username'],
+                               pending_reg['password_hash'], pending_reg['contact_no'], pending_reg['address']))
+            if user_id:
+                user = query_one("SELECT * FROM users WHERE id=%s", (user_id,))
+                if user:
+                    session['user_id'] = user['id']
+                    session['username'] = user['username']
+                    session['role'] = user.get('role', 'user')
+                    session.pop('pending_registration', None)
+                    flash(register_content['success_message'])
+                    if session['role'] == 'admin':
+                        return redirect(url_for('admin_dashboard'))
+                    else:
+                        return redirect(url_for('home'))
+                else:
+                    msg = 'Registration failed. Please try again.'
+            else:
+                msg = 'Registration failed. Please try again.'
+        else:
+            msg = 'Invalid or expired OTP.'
+    return render_template('otp_verify.html', message=msg)
 
 
 # LOGOUT
@@ -240,10 +275,22 @@ def home():
     if r:
         return r
     products = query_all("SELECT * FROM products ORDER BY created_at DESC LIMIT 4")
-    return render_template('home.html', featured=products, content=home_content)
+
+    # Calculate stats for display
+    total_products_row = query_one("SELECT COUNT(*) as count FROM products")
+    if session.get('role') == 'admin':
+        total_orders_row = query_one("SELECT COUNT(*) as count FROM orders")
+    else:
+        total_orders_row = query_one("SELECT COUNT(*) as count FROM orders WHERE user_id=%s", (session['user_id'],))
+    total_users_row = query_one("SELECT COUNT(*) as count FROM users")
+
+    total_products = total_products_row['count'] if total_products_row else 0
+    total_orders = total_orders_row['count'] if total_orders_row else 0
+    total_users = total_users_row['count'] if total_users_row else 0
+
+    return render_template('home.html', featured=products, total_products=total_products, total_orders=total_orders, total_users=total_users, content=home_content)
 
 
-# GLOBAL SHOP PAGE (USER)
 @app.route('/shop')
 def shop():
     r = require_login()
@@ -276,30 +323,6 @@ def about():
     return render_template('about.html', content=about_content)
 
 
-# PROFILE DISPLAY AND EDIT
-@app.route('/profile', methods=['GET', 'POST'])
-def profile():
-    r = require_login()
-    if r:
-        return r
-    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
-    if request.method == 'POST':
-        profile_pic_filename = user.get('profile_pic')  # Keep existing
-        if 'profile_pic' in request.files:
-            file = request.files['profile_pic']
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                profile_pic_filename = filename
-
-        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
-                (request.form.get('full_name'), request.form.get('contact_no'),
-                 request.form.get('address'), profile_pic_filename, session['user_id']))
-        flash(profile_content['update_success'])
-        return redirect(url_for('profile'))
-    return render_template('profile.html', user=user, content=profile_content)
-
-# MEMBERSHIP
 @app.route('/membership', methods=['GET', 'POST'])
 def membership():
     r = require_login()
@@ -316,34 +339,55 @@ def membership():
                     (membership_val, session['user_id']))
             flash("Membership upgrade initiated. Please complete payment.")
         else:
-            # Basic is free
-            execute("UPDATE users SET membership=%s, membership_payment_status='paid' WHERE id=%s",
+            execute("UPDATE users SET membership=%s WHERE id=%s",
                     (membership_val, session['user_id']))
             flash(membership_content['update_success'])
         return redirect(url_for('membership'))
     return render_template('membership.html', user=user, content=membership_content)
 
-# CONFIRM MEMBERSHIP PAYMENT
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    r = require_login()
+    if r:
+        return r
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        contact_no = request.form.get('contact_no', '').strip()
+        address = request.form.get('address', '').strip()
+
+        profile_pic_filename = user['profile_pic']  # Default to existing
+        if 'profile_pic' in request.files:
+            file = request.files['profile_pic']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                profile_pic_filename = filename
+
+        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
+                (full_name, contact_no, address, profile_pic_filename, session['user_id']))
+        flash(profile_content['update_success'])
+        return redirect(url_for('profile'))
+    return render_template('profile.html', user=user, content=profile_content)
+
+
 @app.route('/confirm_membership_payment', methods=['POST'])
 def confirm_membership_payment():
     r = require_login()
     if r:
         return r
 
-    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
-    if not user or user['membership_payment_status'] == 'paid':
-        flash("Invalid request.")
-        return redirect(url_for('membership'))
-
     reference = request.form.get('reference', '').strip()
     if not reference:
         flash("Reference/Transaction ID is required.")
         return redirect(url_for('membership'))
 
-    # Update membership payment status to paid
     execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     flash("Membership payment confirmed. Welcome to " + user['membership'] + "!")
     return redirect(url_for('membership'))
+
 
 # ORDERS PAGE
 @app.route('/orders', methods=['GET'])
@@ -351,17 +395,17 @@ def orders():
     r = require_login()
     if r:
         return r
-    orders = query_all("""SELECT o.*, p.name AS product_name, p.price, p.image
+    orders = query_all("""SELECT o.*, p.name AS product_name, p.price, p.image, p.category
                           FROM orders o
                           JOIN products p ON o.product_id = p.id
                           WHERE o.user_id=%s
                           ORDER BY o.order_date DESC""",
                        (session['user_id'],))
     return render_template('orders.html', orders=orders, content=orders_content)
-                
-# PLACE ORDER
-@app.route('/place_order/<int:product_id>', methods=['POST'])
-def place_order(product_id):
+
+# ADD TO CART
+@app.route('/add_to_cart/<int:product_id>', methods=['POST'])
+def add_to_cart(product_id):
     r = require_login()
     if r:
         return r
@@ -371,10 +415,154 @@ def place_order(product_id):
         flash("Product not found.")
         return redirect(url_for('shop'))
 
+    # Check stock availability
+    stock_qty = int(product.get('stock_qty', 0))
+    if stock_qty <= 0:
+        flash("This product is out of stock.")
+        return redirect(url_for('shop'))
+
     try:
         quantity = int(request.form.get('quantity', 1))
     except ValueError:
         quantity = 1
+
+    if quantity > stock_qty:
+        flash(f"Only {stock_qty} items available in stock.")
+        return redirect(url_for('shop'))
+
+    payment_method = request.form.get('payment_method', 'Cash on Delivery')
+
+    # Check if item already in cart
+    existing = query_one("SELECT * FROM cart WHERE user_id=%s AND product_id=%s", (session['user_id'], product_id))
+    if existing:
+        # Update quantity
+        new_quantity = existing['quantity'] + quantity
+        if new_quantity > stock_qty:
+            flash(f"Only {stock_qty} items available in stock.")
+            return redirect(url_for('shop'))
+        execute("UPDATE cart SET quantity=%s WHERE id=%s", (new_quantity, existing['id']))
+    else:
+        # Add new item to cart
+        execute("INSERT INTO cart (user_id, product_id, quantity, payment_method) VALUES (%s, %s, %s, %s)",
+                (session['user_id'], product_id, quantity, payment_method))
+
+    flash("Item added to cart.")
+    return redirect(url_for('cart'))
+
+# CART PAGE
+@app.route('/cart')
+def cart():
+    r = require_login()
+    if r:
+        return r
+
+    cart_items = query_all("""
+        SELECT c.*, p.name AS product_name, p.price, p.image, (c.quantity * p.price) AS total_price
+        FROM cart c
+        JOIN products p ON c.product_id = p.id
+        WHERE c.user_id=%s
+        ORDER BY c.added_at DESC
+    """, (session['user_id'],))
+
+    grand_total = sum(item['total_price'] for item in cart_items)
+
+    return render_template('cart.html', cart_items=cart_items, grand_total=grand_total)
+
+# REMOVE FROM CART
+@app.route('/remove_from_cart/<int:cart_id>', methods=['POST'])
+def remove_from_cart(cart_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the cart item belongs to the user
+    cart_item = query_one("SELECT * FROM cart WHERE id=%s AND user_id=%s", (cart_id, session['user_id']))
+    if not cart_item:
+        flash("Cart item not found.")
+        return redirect(url_for('cart'))
+
+    execute("DELETE FROM cart WHERE id=%s", (cart_id,))
+    flash("Item removed from cart.")
+    return redirect(url_for('cart'))
+
+# CHECKOUT
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    r = require_login()
+    if r:
+        return r
+
+    cart_items = query_all("SELECT * FROM cart WHERE user_id=%s", (session['user_id'],))
+    if not cart_items:
+        flash("Your cart is empty.")
+        return redirect(url_for('cart'))
+
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+
+    for item in cart_items:
+        product = query_one("SELECT * FROM products WHERE id=%s", (item['product_id'],))
+        if not product:
+            continue
+
+        stock_qty = int(product.get('stock_qty', 0))
+        if item['quantity'] > stock_qty:
+            flash(f"Not enough stock for {product['name']}.")
+            return redirect(url_for('cart'))
+
+        # Calculate prices
+        price = float(product.get('price', 0))
+        total_price = price * item['quantity']
+
+        discount = 0.0
+        if user and user['membership']:
+            if user['membership'] == 'Basic':
+                discount = 0.05
+            elif user['membership'] == 'Silver':
+                discount = 0.10
+            elif user['membership'] == 'Gold':
+                discount = 0.15
+            elif user['membership'] == 'Platinum':
+                discount = 0.20
+
+        discounted_price = total_price * (1 - discount)
+
+        # Decrement stock
+        new_stock = stock_qty - item['quantity']
+        execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, item['product_id']))
+
+        execute("""INSERT INTO orders (user_id, product_id, quantity, original_price, discount_applied, total_price, payment_method, payment_status, status, order_date)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, 'unpaid', 'pending', NOW())""",
+                (session['user_id'], item['product_id'], item['quantity'], total_price, discount, discounted_price, item['payment_method']))
+
+    # Clear the cart after checkout
+    execute("DELETE FROM cart WHERE user_id=%s", (session['user_id'],))
+
+    flash("Order placed successfully!")
+    return redirect(url_for('orders'))
+
+# PLACE ORDER (direct order, keeping for compatibility)
+@app.route('/place_order/<int:product_id>', methods=['POST'])
+def place_order(product_id):
+    r = require_login()
+    if r:
+        return r
+
+    product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
+    if not product:
+        return redirect(url_for('shop'))
+
+    # Check stock availability
+    stock_qty = int(product.get('stock_qty', 0))
+    if stock_qty <= 0:
+        return redirect(url_for('shop'))
+
+    try:
+        quantity = int(request.form.get('quantity', 1))
+    except ValueError:
+        quantity = 1
+
+    if quantity > stock_qty:
+        return redirect(url_for('shop'))
 
     payment_method = request.form.get('payment_method', 'Cash on Delivery')
 
@@ -389,23 +577,49 @@ def place_order(product_id):
     # Apply membership discounts
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     discount = 0.0
-    if user and user['membership'] and user['membership_payment_status'] == 'paid':
+    if user and user['membership']:
         if user['membership'] == 'Basic':
-            discount = 0.05  # 5% welcome discount
+            discount = 0.05
         elif user['membership'] == 'Silver':
-            discount = 0.10  # 10% birthday discount
+            discount = 0.10
         elif user['membership'] == 'Gold':
-            discount = 0.10  # 10% birthday discount
+            discount = 0.15
         elif user['membership'] == 'Platinum':
-            discount = 0.20  # 20% store-wide discount
+            discount = 0.20
 
     discounted_price = total_price * (1 - discount)
 
-    execute("""INSERT INTO orders (user_id, product_id, quantity, total_price, payment_method, payment_status, order_date)
-               VALUES (%s, %s, %s, %s, %s, 'unpaid', NOW())""",
-            (session['user_id'], product_id, quantity, discounted_price, payment_method))
+    # Decrement stock quantity
+    new_stock = stock_qty - quantity
+    execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, product_id))
+
+    execute("""INSERT INTO orders (user_id, product_id, quantity, original_price, discount_applied, total_price, payment_method, payment_status, status, order_date)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, 'unpaid', 'pending', NOW())""",
+            (session['user_id'], product_id, quantity, total_price, discount, discounted_price, payment_method))
 
     flash(orders_content['order_placed'])
+    return redirect(url_for('orders'))
+
+@app.route('/update_order_payment/<int:order_id>', methods=['POST'])
+def update_order_payment(order_id):
+    r = require_login()
+    if r:
+        return r
+
+    # Ensure the order belongs to the user
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    if not order:
+        flash("Order not found.")
+        return redirect(url_for('orders'))
+
+    payment_method = request.form.get('payment_method')
+    if payment_method not in ['Cash on Delivery', 'GCash', 'PayMaya']:
+        flash("Invalid payment method.")
+        return redirect(url_for('orders'))
+
+    # Update payment method
+    execute("UPDATE orders SET payment_method=%s WHERE id=%s", (payment_method, order_id))
+    flash("Payment method updated successfully.")
     return redirect(url_for('orders'))
 
 # CONFIRM PAYMENT
@@ -431,28 +645,82 @@ def confirm_payment(order_id):
     flash("Payment confirmed successfully. Reference: " + reference)
     return redirect(url_for('orders'))
 
-# UPDATE ORDER PAYMENT METHOD
-@app.route('/update_order_payment/<int:order_id>', methods=['POST'])
-def update_order_payment(order_id):
+@app.route('/cancel_order/<int:order_id>', methods=['POST'])
+def cancel_order(order_id):
     r = require_login()
     if r:
         return r
 
-    # Ensure the order belongs to the user
-    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s", (order_id, session['user_id']))
+    # Ensure the order belongs to the user and is not delivered
+    order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s AND status != 'delivered'", (order_id, session['user_id']))
     if not order:
-        flash("Order not found.")
+        flash("Order not found or cannot be cancelled.")
         return redirect(url_for('orders'))
 
-    payment_method = request.form.get('payment_method')
-    if payment_method not in ['Cash on Delivery', 'GCash', 'PayMaya']:
-        flash("Invalid payment method.")
-        return redirect(url_for('orders'))
+    # Restore stock quantity
+    product = query_one("SELECT * FROM products WHERE id=%s", (order['product_id'],))
+    if product:
+        new_stock = int(product.get('stock_qty', 0)) + order['quantity']
+        execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, order['product_id']))
 
-    # Update payment method
-    execute("UPDATE orders SET payment_method=%s WHERE id=%s", (payment_method, order_id))
-    flash("Payment method updated successfully.")
+    # Delete the order
+    execute("DELETE FROM orders WHERE id=%s", (order_id,))
+    flash("Order cancelled successfully.")
     return redirect(url_for('orders'))
+
+@app.route('/cancel_selected_orders', methods=['POST'])
+def cancel_selected_orders():
+    r = require_login()
+    if r:
+        return r
+
+    selected_orders = request.form.getlist('selected_orders')
+    if not selected_orders:
+        flash("No orders selected.")
+        return redirect(url_for('orders'))
+
+    cancelled_count = 0
+    for order_id_str in selected_orders:
+        try:
+            order_id = int(order_id_str)
+        except ValueError:
+            continue
+
+        # Ensure the order belongs to the user and is not delivered
+        order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s AND status != 'delivered'", (order_id, session['user_id']))
+        if not order:
+            continue
+
+        # Restore stock quantity
+        product = query_one("SELECT * FROM products WHERE id=%s", (order['product_id'],))
+        if product:
+            new_stock = int(product.get('stock_qty', 0)) + order['quantity']
+            execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, order['product_id']))
+
+        # Delete the order
+        execute("DELETE FROM orders WHERE id=%s", (order_id,))
+        cancelled_count += 1
+
+    if cancelled_count > 0:
+        flash(f"{cancelled_count} order(s) cancelled successfully.")
+    else:
+        flash("No orders were cancelled.")
+    return redirect(url_for('orders'))
+
+@app.route('/admin_shop')
+def admin_shop():
+    r = require_login()
+    if r:
+        return r
+
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
+
+    # Fetch all products for admin shop view
+    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    return render_template('admin/admin_shop.html', products=products, content=admin_dashboard_content)
 
 # PRODUCTS (ADMIN CRUD)
 @app.route('/admin_products', methods=['GET', 'POST'])
@@ -466,6 +734,14 @@ def admin_products(id=None):
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
+
+    # DELETE PRODUCT
+    if request.method == 'POST' and request.form.get('_method') == 'DELETE':
+        delete_id = request.form.get('delete_id')
+        if delete_id:
+            execute("DELETE FROM products WHERE id=%s", (delete_id,))
+            flash(products_content['product_deleted'])
+        return redirect(url_for('admin_products'))
 
     # --- CREATE NEW PRODUCT ---
     if request.method == 'POST' and id is None:
@@ -485,6 +761,7 @@ def admin_products(id=None):
                 image_filename = filename
 
         if not name:
+            flash("Name is required.")
             return redirect(url_for('admin_products'))
 
         execute("""INSERT INTO products (name, description, price, stock_qty, category, image, created_at)
@@ -529,24 +806,6 @@ def admin_products(id=None):
     products_list = query_all("SELECT * FROM products ORDER BY created_at DESC")
     return render_template('admin/admin_products.html', products=products_list, content=products_content)
 
-
-@app.route('/admin_products/delete/<int:id>', methods=['POST'])
-def admin_products_delete(id):
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    # Delete product
-    execute("DELETE FROM products WHERE id=%s", (id,))
-    flash(products_content['product_deleted'])
-    return redirect(url_for('admin_products'))
-
-
 # ADMIN ORDERS
 @app.route('/admin_orders', methods=['GET'])
 def admin_orders():
@@ -568,25 +827,6 @@ def admin_orders():
 
     return render_template('admin/admin_orders.html', orders=orders, content=admin_dashboard_content)
 
-
-# ADMIN SHOP
-@app.route('/admin_shop')
-def admin_shop():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    # Fetch all products for admin shop view
-    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_shop.html', products=products, content=admin_dashboard_content)
-
-
-# ADMIN DASHBOARD
 @app.route('/admin_dashboard')
 def admin_dashboard():
     r = require_login()
@@ -611,7 +851,6 @@ def admin_dashboard():
                            total_orders=total_orders,
                            total_users=total_users,
                            content=admin_dashboard_content)
-
 
 # UPDATE ORDER STATUS (ADMIN)
 @app.route('/admin_update_order_status/<int:order_id>', methods=['POST'])
@@ -639,7 +878,6 @@ def admin_update_order_status(order_id):
         flash('Order status updated successfully.')
 
     return redirect(url_for('admin_orders'))
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

@@ -42,6 +42,10 @@
               <span class="label">Address:</span>
               <span class="value">{{ user.address or 'N/A' }}</span>
             </div>
+            <div class="detail-row mb-3" style="display: center;  align-items: center; text-align: center; color: aliceblue;">
+              <span class="label">Membership:</span>
+              <span class="value">{{ user.membership or 'None' }}</span>
+            </div>
           </div>
 
           <button id="edit-btn" class="btn btn-success mt-4">Edit Profile</button>

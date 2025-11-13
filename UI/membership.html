@@ -50,10 +50,10 @@
     <div class="row g-2">
       <div class="col-md-4">
         <select name="membership" class="form-select">
-          <option value="Basic">Basic (Free)</option>
-          <option value="Silver">Silver (Paid)</option>
-          <option value="Gold">Gold (Paid)</option>
-          <option value="Platinum">Platinum (Paid)</option>
+          <option value="Basic" {% if user.membership == 'Basic' %}selected{% endif %}>Basic (Free)</option>
+          <option value="Silver" {% if user.membership == 'Silver' %}selected{% endif %}>Silver (Paid)</option>
+          <option value="Gold" {% if user.membership == 'Gold' %}selected{% endif %}>Gold (Paid)</option>
+          <option value="Platinum" {% if user.membership == 'Platinum' %}selected{% endif %}>Platinum (Paid)</option>
         </select>
       </div>
       <div class="col-md-4">

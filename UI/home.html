@@ -1,7 +1,411 @@
 {% extends "layout.html" %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+<style>
+.hero-section {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  animation: float 20s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-20px) rotate(1deg); }
+  66% { transform: translateY(10px) rotate(-1deg); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  animation: fadeInUp 1.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-title {
+  font-size: 4rem;
+  font-weight: 800;
+  text-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1rem;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  font-weight: 300;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  margin-bottom: 2rem;
+}
+
+.cta-button {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 50px;
+  box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cta-button:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+}
+
+.stats-section {
+  background: linear-gradient(135deg, rgba(15, 15, 35, 0.95) 0%, rgba(25, 25, 55, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  padding: 4rem 0;
+  position: relative;
+}
+
+.stats-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.03)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.03)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.02)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  opacity: 0.5;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.stat-item:hover::before {
+  left: 100%;
+}
+
+.stat-number {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.featured-section {
+  padding: 5rem 0;
+  position: relative;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 3rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.product-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  height: 100%;
+  position: relative;
+}
+
+.product-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.product-card:hover::before {
+  opacity: 1;
+}
+
+.product-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.product-image {
+  height: 250px;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.05);
+}
+
+.product-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+
+.product-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.btn-cart, .btn-buy {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.btn-cart {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border: none;
+  color: white;
+}
+
+.btn-cart:hover {
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+}
+
+.btn-buy {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+}
+
+.btn-buy:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.features-section {
+  background: linear-gradient(135deg, rgba(15, 15, 35, 0.95) 0%, rgba(25, 25, 55, 0.95) 100%);
+  padding: 5rem 0;
+  position: relative;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 3rem 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  color: #667eea;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.1);
+  color: #764ba2;
+}
+
+.feature-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.feature-description {
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+.cta-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 5rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 30% 70%, rgba(120, 119, 198, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 70% 30%, rgba(255, 119, 198, 0.2) 0%, transparent 50%);
+}
+
+.cta-content {
+  position: relative;
+  z-index: 2;
+}
+
+.cta-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.cta-subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-membership {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 50px;
+  box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-membership:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.2rem;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .cta-title {
+    font-size: 2rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .btn-cart, .btn-buy {
+    margin-bottom: 0.5rem;
+  }
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +420,8 @@
   </div>
 </section>
 
+
+
 <!-- FEATURED PRODUCTS -->
 <section class="py-5 bg-dark text-center">
   <div class="container">
@@ -25,7 +431,7 @@
       <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="card bg-dark border border-primary shadow-lg h-100 hover-card">
         {% if p.image %}
-          <img src="{{ url_for('static', filename='uploads/' + p.image) }} " 
+          <img src="{{ url_for('static', filename='uploads/' + p.image) }} "
                class="card-img-top rounded-top" alt="{{ p.name }}" style="width: auto; height: 250px;">
         {% else %}
           <img src="{{ url_for('static', filename='img/logo.png') }}"
@@ -36,12 +442,20 @@
             <p class="text-secondary small flex-grow-1">{{ p.description or "No description available." }}</p>
             <p class="fw-bold text-info mb-3">₱{{ "%.2f"|format(p.price) }}</p>
 
-            <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
-              <div class="input-group">
-                <input type="number" name="quantity" class="form-control form-control-sm" value="1" min="1">
-                <button class="btn btn-sm btn-primary" type="submit">Order Now</button>
-              </div>
-            </form>
+            <div class="d-flex gap-2">
+              <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" class="flex-fill">
+                <div class="input-group input-group-sm">
+                  <input type="number" name="quantity" class="form-control" value="1" min="1">
+                  <input type="hidden" name="payment_method" value="Cash on Delivery">
+                  <button class="btn btn-sm btn-success" type="submit">Add to Cart</button>
+                </div>
+              </form>
+              <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST" class="flex-fill">
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="payment_method" value="Cash on Delivery">
+                <button class="btn btn-sm btn-primary w-100" type="submit">Order Now</button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
