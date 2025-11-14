@@ -1,5 +1,8 @@
 {% extends "layout.html" %}
 {% block head %}
+<script>
+const translations = JSON.parse("{{ content | tojson | safe }}");
+</script>
 <style>
 .orders-hero {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -592,6 +595,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (checked.length === 0) return;
         if (confirm('Are you sure you want to cancel the selected orders?')) {
             const form = document.getElementById('cancel-form');
+            // Clear previous hidden inputs
+            const hiddenInputs = form.querySelectorAll('input[name="selected_orders"]');
+            hiddenInputs.forEach(input => input.remove());
+            // Add checked ones
+            checked.forEach(cb => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'selected_orders';
+                hiddenInput.value = cb.value;
+                form.appendChild(hiddenInput);
+            });
             form.submit();
         }
     });
@@ -667,8 +681,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- ORDERS HERO -->
 <section class="orders-hero">
   <div class="container">
-    <h1 class="orders-title">My Orders</h1>
-    <p class="orders-subtitle">Track and manage all your purchases</p>
+    <h1 class="orders-title">{{ content['orders_title'] }}</h1>
+    <p class="orders-subtitle">{{ content['orders_subtitle'] }}</p>
   </div>
 </section>
 
@@ -680,7 +694,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% set pending_orders = orders | selectattr('status', 'in', ['pending', 'cancelled']) | list %}
     {% if pending_orders %}
     <div class="category-header">
-      <h3 class="category-title">Pending Orders</h3>
+      <h3 class="category-title">{{ content['pending_orders_title'] }}</h3>
     </div>
     <div class="row g-4 mb-4">
       {% for o in pending_orders %}
@@ -741,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <div class="order-checkbox">
               <input type="checkbox" name="selected_orders" value="{{ o.id }}" class="checkbox-input" id="check_{{ o.id }}" data-price="{{ o.total_price }}">
-              <label class="checkbox-label" for="check_{{ o.id }}">Select for bulk actions</label>
+              <label class="checkbox-label" for="check_{{ o.id }}">Select</label>
             </div>
           </div>
         </div>
@@ -754,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% set delivered_orders = orders | selectattr('status', 'equalto', 'delivered') | list %}
     {% if delivered_orders %}
     <div class="category-header">
-      <h3 class="category-title">Delivered Orders</h3>
+      <h3 class="category-title">{{ content['delivered_orders_title'] }}</h3>
     </div>
     {% for category, orders_in_cat in delivered_orders | groupby('category') %}
     <div class="sub-category-header">
@@ -829,12 +843,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   <!-- BULK ACTIONS -->
   <div class="bulk-actions">
-    <h4 class="bulk-actions-title">Bulk Actions</h4>
+    <h4 class="bulk-actions-title">{{ content['bulk_actions_title'] }}</h4>
     <button type="button" id="cancel-selected" class="btn-bulk btn-cancel-bulk" disabled>
-      <i class="fas fa-times me-2"></i>Cancel Selected
+      <i class="fas fa-times me-2"></i>{{ content['cancel_selected'] }}
     </button>
     <button type="button" id="checkout-selected" class="btn-bulk btn-checkout-bulk" disabled>
-      <i class="fas fa-credit-card me-2"></i>Checkout Selected
+      <i class="fas fa-credit-card me-2"></i>{{ content['checkout_selected'] }}
     </button>
   </div>
 
@@ -847,10 +861,10 @@ document.addEventListener('DOMContentLoaded', function() {
   {% else %}
   <div class="empty-orders">
     <i class="fas fa-shopping-bag empty-icon"></i>
-    <h3 class="empty-title">No orders yet</h3>
-    <p class="empty-text">You haven't placed any orders yet. Start shopping to see your orders here!</p>
+    <h3 class="empty-title">{{ content['no_orders_title'] }}</h3>
+    <p class="empty-text">{{ content['no_orders_text'] }}</p>
     <a href="{{ url_for('shop') }}" class="btn-shop-now">
-      <i class="fas fa-shopping-cart me-2"></i>Start Shopping
+      <i class="fas fa-shopping-cart me-2"></i>{{ content['start_shopping'] }}
     </a>
   </div>
   {% endif %}
@@ -860,13 +874,13 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="payment-modal" class="payment-modal">
   <div class="payment-modal-content">
     <div class="payment-modal-header">
-      <h3 class="payment-modal-title">Complete Payment</h3>
+      <h3 class="payment-modal-title">{{ content['complete_payment_title'] }}</h3>
       <button type="button" class="btn-close-modal">&times;</button>
     </div>
 
     <div class="payment-form-row">
       <div class="payment-form-group">
-        <label for="payment-method" class="form-label">Payment Method</label>
+        <label for="payment-method" class="form-label">{{ content['payment_method_label'] }}</label>
         <select id="payment-method" class="payment-select">
           <option value="Cash on Delivery">Cash on Delivery</option>
           <option value="GCash">GCash</option>
@@ -874,27 +888,27 @@ document.addEventListener('DOMContentLoaded', function() {
         </select>
       </div>
       <div class="payment-form-group">
-        <label for="reference" class="form-label">Reference/Transaction ID</label>
-        <input type="text" id="reference" class="payment-input" placeholder="Enter reference number">
+        <label for="reference" class="form-label">{{ content['reference_label'] }}</label>
+        <input type="text" id="reference" class="payment-input" placeholder="{{ content['reference_placeholder'] }}">
       </div>
     </div>
 
     <div id="payment-details" class="payment-details-panel">
-      <h4 class="payment-details-title">Payment Details</h4>
+      <h4 class="payment-details-title">{{ content['payment_details_title'] }}</h4>
       <p class="payment-account-info">
         <strong id="account-label"></strong>
         <span class="account-number" id="account-number"></span>
       </p>
-      <p class="payment-instruction">Send the payment to the above account and enter the reference number to confirm.</p>
+      <p class="payment-instruction">{{ content['payment_instruction'] }}</p>
     </div>
 
     <div class="total-amount-display">
-      <div class="total-label">Total Amount</div>
+      <div class="total-label">{{ content['total_amount_label'] }}</div>
       <div class="total-value" id="total-amount">₱0.00</div>
     </div>
 
     <button type="button" id="confirm-payment" class="btn-confirm-payment">
-      <i class="fas fa-check me-2"></i>Confirm Payment
+      <i class="fas fa-check me-2"></i>{{ content['confirm_payment'] }}
     </button>
   </div>
 </div>

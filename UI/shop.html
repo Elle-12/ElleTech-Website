@@ -185,7 +185,7 @@
 
 .product-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 0.75rem;
   margin-top: auto;
 }
@@ -205,7 +205,7 @@
 }
 
 .quantity-input {
-  width: 60px;
+  width: 25px;
   height: 36px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
@@ -225,13 +225,14 @@
 }
 
 .btn-add-cart, .btn-order-now {
-  width: 100%;
-  padding: 0.8rem 1rem;
-  font-weight: 600;
+  flex: 1;
+  height: 36px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 300;
   border-radius: 12px;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  font-size: 0.85rem;
+  font-size: 0.6rem;
   letter-spacing: 0.5px;
   border: none;
   position: relative;
@@ -259,6 +260,10 @@
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+select option {
+  color: black;
 }
 
 .empty-state {
@@ -347,10 +352,6 @@
       </button>
     </form>
   </div>
-</section>
-
-<!-- PRODUCTS GRID -->
-<section class="py-5 bg-dark text-center">
   <div class="container">
     <h2 class="fw-bold text-light mb-4">Our Products</h2>
     {% if products %}
@@ -369,25 +370,44 @@
             <h5 class="card-title text-light">{{ p.name }}</h5>
             <p class="text-secondary small flex-grow-1">{{ p.description or "No description available." }}</p>
             <p class="fw-bold text-info mb-3">₱{{ "%.2f"|format(p.price) }}</p>
+            {% if p.stock_qty > 0 %}
+              <p class="text-success small mb-3">In Stock: {{ p.stock_qty }}</p>
+            {% else %}
+              <p class="text-danger small mb-3">Out of Stock</p>
+            {% endif %}
 
             <div class="product-actions">
-              <div class="quantity-input-group">
-                <label for="quantity-{{ p.id }}" class="quantity-label">Qty:</label>
-                <input type="number" id="quantity-{{ p.id }}" name="quantity" class="quantity-input" value="1" min="1" max="99">
-              </div>
-              <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST">
-                <input type="hidden" name="payment_method" value="Cash on Delivery">
-                <button class="btn-add-cart" type="submit">
-                  <i class="fas fa-cart-plus me-1"></i>Add to Cart
-                </button>
-              </form>
-              <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
-                <input type="hidden" name="quantity" value="1">
-                <input type="hidden" name="payment_method" value="Cash on Delivery">
-                <button class="btn-order-now" type="submit">
-                  <i class="fas fa-bolt me-1"></i>Order Now
-                </button>
-              </form>
+             <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
+    <!-- PAYMENT METHOD -->
+    <div class="mb-2">
+        <select name="payment_method" class="form-select form-select-sm">
+            <option value="Cash on Delivery">Cash on Delivery</option>
+            <option value="GCash">GCash</option>
+            <option value="PayMaya">PayMaya</option>
+        </select>
+    </div>
+
+    <!-- QUANTITY + BUTTONS -->
+    <div class="input-group">
+        <!-- USER CHOOSES QUANTITY -->
+        <input type="number"
+               name="quantity"
+               class="form-control form-control-sm quantity-input"
+               value="1" min="1">
+
+        <!-- ADD TO CART BUTTON -->
+        <button formaction="{{ url_for('add_to_cart', product_id=p.id) }}"
+                formmethod="POST"
+                class="btn-add-cart">
+            Add to Cart
+        </button>
+
+        <!-- BUY NOW -->
+        <button class="btn-order-now" type="submit">
+            Buy Now
+        </button>
+    </div>
+</form>
             </div>
           </div>
         </div>
@@ -408,4 +428,21 @@
 </section>
 
 {% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    quantityInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const productId = this.id.replace('qty-', '');
+            const cartHidden = document.getElementById('cart-qty-' + productId);
+            const orderHidden = document.getElementById('order-qty-' + productId);
+            let value = this.value;
+            if (value === "" || value < 1) value = 1;
+            if (cartHidden) cartHidden.value = value;
+            if (orderHidden) orderHidden.value = value;
+        });
+    });
+});
+</script>
 

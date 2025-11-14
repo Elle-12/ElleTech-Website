@@ -36,6 +36,47 @@
     </div>
   </div>
 
+  <!-- Product Stocks -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card bg-secondary text-light shadow">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Product Stocks (Lowest First)</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-dark table-striped">
+              <thead>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Product Name</th>
+                  <th>Stock Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in products_stocks %}
+                <tr>
+                  <td>{{ product.id }}</td>
+                  <td>{{ product.name }}</td>
+                  <td>
+                    {% if product.stock_qty <= 5 %}
+                      <span class="badge bg-danger">{{ product.stock_qty }}</span>
+                    {% elif product.stock_qty <= 10 %}
+                      <span class="badge bg-warning text-dark">{{ product.stock_qty }}</span>
+                    {% else %}
+                      <span class="badge bg-success">{{ product.stock_qty }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Quick Actions -->
   <div class="row">
     <div class="col-md-6 mb-3">

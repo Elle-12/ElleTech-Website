@@ -5,7 +5,8 @@
 .hero-section {
   position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5d5e5f 0%, #775697 100%);
+  height: 25%;
   overflow: hidden;
 }
 
@@ -212,45 +213,85 @@
   margin-bottom: 1rem;
 }
 
-.action-buttons {
+.quantity-input-group {
   display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.quantity-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+}
+
+.quantity-input {
+  width: 60px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.quantity-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.product-actions {
+  display: flex;
+  flex-direction: row;
   gap: 0.5rem;
   margin-top: auto;
 }
 
-.btn-cart, .btn-buy {
+.btn-add-cart, .btn-order-now {
   flex: 1;
-  padding: 0.75rem 1rem;
-  font-weight: 600;
+  height: 36px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 300;
   border-radius: 12px;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+  font-size: 0.6rem;
+  letter-spacing: 0.3px;
 }
 
-.btn-cart {
+.btn-add-cart {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   border: none;
   color: white;
 }
 
-.btn-cart:hover {
+.btn-add-cart:hover {
   background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
 }
 
-.btn-buy {
+.btn-order-now {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   color: white;
 }
 
-.btn-buy:hover {
+.btn-order-now:hover {
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+select option {
+  color: black;
 }
 
 .features-section {
@@ -401,7 +442,7 @@
     flex-direction: column;
   }
 
-  .btn-cart, .btn-buy {
+  .btn-add-cart, .btn-order-now {
     margin-bottom: 0.5rem;
   }
 }
@@ -441,24 +482,48 @@
             <h5 class="card-title text-light">{{ p.name }}</h5>
             <p class="text-secondary small flex-grow-1">{{ p.description or "No description available." }}</p>
             <p class="fw-bold text-info mb-3">₱{{ "%.2f"|format(p.price) }}</p>
+            {% if p.stock_qty > 0 %}
+              <p class="text-success small mb-3">In Stock: {{ p.stock_qty }}</p>
+            {% else %}
+              <p class="text-danger small mb-3">Out of Stock</p>
+            {% endif %}
 
-            <div class="d-flex gap-2">
-              <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" class="flex-fill">
-                <div class="input-group input-group-sm">
-                  <input type="number" name="quantity" class="form-control" value="1" min="1">
-                  <input type="hidden" name="payment_method" value="Cash on Delivery">
-                  <button class="btn btn-sm btn-success" type="submit">Add to Cart</button>
-                </div>
-              </form>
-              <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST" class="flex-fill">
-                <input type="hidden" name="quantity" value="1">
-                <input type="hidden" name="payment_method" value="Cash on Delivery">
-                <button class="btn btn-sm btn-primary w-100" type="submit">Order Now</button>
-              </form>
+            <div class="product-actions">
+              <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
+    <!-- PAYMENT METHOD -->
+    <div class="mb-2">
+        <select name="payment_method" class="form-select form-select-sm"">
+            <option value="Cash on Delivery">Cash on Delivery</option>
+            <option value="GCash">GCash</option>
+            <option value="PayMaya">PayMaya</option>
+        </select>
+    </div>
+
+    <!-- QUANTITY + BUTTONS -->
+    <div class="input-group">
+        <!-- USER CHOOSES QUANTITY -->
+        <input type="number"
+               name="quantity"
+               class="form-control form-control-sm quantity-input"
+               value="1" min="1">
+
+        <!-- ADD TO CART BUTTON -->
+        <button formaction="{{ url_for('add_to_cart', product_id=p.id) }}"
+                formmethod="POST"
+                class="btn-add-cart">
+            Add to Cart
+        </button>
+
+        <!-- BUY NOW -->
+        <button class="btn-order-now" type="submit">
+            Buy Now
+        </button>
+    </div>
+</form>
             </div>
           </div>
         </div>
-      </div>
+      </div> 
       {% endfor %}
     </div>
   </div>
@@ -503,3 +568,20 @@
 </section>
 
 {% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    quantityInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const productId = this.id.replace('qty-', '');
+            const cartHidden = document.getElementById('cart-qty-' + productId);
+            const orderHidden = document.getElementById('order-qty-' + productId);
+            let value = this.value;
+            if (value === "" || value < 1) value = 1;
+            if (cartHidden) cartHidden.value = value;
+            if (orderHidden) orderHidden.value = value;
+        });
+    });
+});
+</script>
