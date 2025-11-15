@@ -918,10 +918,8 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endfor %}
     {% endif %}
   </div>
-
-  <!-- BULK ACTIONS -->
   <div class="bulk-actions">
-    <h4 class="bulk-actions-title">{{ content['bulk_actions_title'] }}</h4>
+    <h4 class="bulk-actions-title"></h4>
     <button type="button" id="cancel-selected" class="btn-bulk btn-cancel-bulk" disabled>
       <i class="fas fa-times me-2"></i>Cancel Order
     </button>
@@ -987,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
 
       <button type="submit" class="btn-confirm-payment">
-        <i class="fas fa-check me-2"></i>{{ content['confirm_payment'] }}
+        Confirm <i class="fas fa-check me-2"></i>{{ content['confirm_payment'] }}
       </button>
     </form>
   </div>
