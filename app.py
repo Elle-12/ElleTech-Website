@@ -114,6 +114,7 @@ orders_content = {
     'orders_title': 'My Orders',
     'orders_subtitle': 'Track and manage all your purchases',
     'pending_orders_title': 'Pending Orders',
+    'paid_not_delivered_orders_title': 'Paid Orders (Not Delivered Yet)',
     'delivered_orders_title': 'Delivered Orders',
     'uncategorized': 'Uncategorized',
     'quantity_label': 'Quantity:',
@@ -466,19 +467,40 @@ def membership():
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
         membership_val = request.form.get('membership')
-        payment_method = request.form.get('payment_method')
-
-        # If upgrading to paid membership, set payment status to unpaid
-        if membership_val in ['Silver', 'Gold', 'Platinum']:
-            execute("UPDATE users SET membership=%s, membership_payment_status='unpaid' WHERE id=%s",
-                    (membership_val, session['user_id']))
-            flash("Membership upgrade initiated. Please complete payment.")
-        else:
-            execute("UPDATE users SET membership=%s WHERE id=%s",
-                    (membership_val, session['user_id']))
-            flash(membership_content['update_success'])
-        return redirect(url_for('membership'))
+        if membership_val:
+            execute("UPDATE users SET membership=%s, membership_payment_status='unpaid' WHERE id=%s", (membership_val, session['user_id']))
+            flash("Membership updated.")
+            return redirect(url_for('membership'))
     return render_template('membership.html', user=user, content=membership_content)
+
+@app.route('/confirm_membership_payment', methods=['POST'])
+def confirm_membership_payment():
+    r = require_login()
+    if r:
+        return r
+    payment_method = request.form.get('payment_method')
+    reference = request.form.get('reference', '').strip()
+    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+    current_membership = user.get('membership')
+    current_payment_status = user.get('membership_payment_status', 'unpaid')
+    if current_membership and current_payment_status == 'unpaid':
+        if payment_method == 'Cash on Delivery':
+            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+            flash("Membership payment confirmed.")
+            return redirect(url_for('membership'))
+        elif payment_method in ['GCash', 'PayMaya']:
+            if not reference:
+                flash("Reference/Transaction ID is required for this payment method.")
+                return redirect(url_for('membership'))
+            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+            flash("Membership payment confirmed.")
+            return redirect(url_for('membership'))
+        else:
+            flash("Invalid payment method.")
+            return redirect(url_for('membership'))
+    else:
+        flash("No unpaid membership to confirm.")
+        return redirect(url_for('membership'))
 
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
@@ -488,8 +510,15 @@ def profile():
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
+        username = request.form.get('username', '').strip()
         contact_no = request.form.get('contact_no', '').strip()
         address = request.form.get('address', '').strip()
+
+        # Check if username is already taken by another user
+        existing_user = query_one("SELECT * FROM users WHERE username=%s AND id != %s", (username, session['user_id']))
+        if existing_user:
+            flash("Username already taken.")
+            return redirect(url_for('profile'))
 
         profile_pic_filename = user['profile_pic']  # Default to existing
         if 'profile_pic' in request.files:
@@ -499,29 +528,41 @@ def profile():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 profile_pic_filename = filename
 
-        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
-                (full_name, contact_no, address, profile_pic_filename, session['user_id']))
+        execute("UPDATE users SET full_name=%s, username=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
+                (full_name, username, contact_no, address, profile_pic_filename, session['user_id']))
+        # Update session username
+        session['username'] = username
         flash(profile_content['update_success'])
         return redirect(url_for('profile'))
     return render_template('profile.html', user=user, content=profile_content)
 
-@app.route('/confirm_membership_payment', methods=['POST'])
-def confirm_membership_payment():
+@app.route('/cart')
+def cart():
     r = require_login()
     if r:
         return r
+    cart_items = query_all("""
+    SELECT c.*, p.name AS product_name, p.price, p.image, (c.quantity * p.price) AS total_price
+    FROM cart c
+    JOIN products p ON c.product_id = p.id
+    WHERE c.user_id=%s
+    ORDER BY c.added_at DESC
+""", (session['user_id'],))
+    grand_total = sum(item['total_price'] for item in cart_items)
+    return render_template('cart.html', cart_items=cart_items, grand_total=grand_total, content=cart_content)
 
-    reference = request.form.get('reference', '').strip()
-    if not reference:
-        flash("Reference/Transaction ID is required.")
-        return redirect(url_for('membership'))
+@app.route('/remove_from_cart/<int:cart_id>', methods=['POST'])
+def remove_from_cart(cart_id):
+    r = require_login()
+    if r:
+        return r
+    cart_item = query_one("SELECT * FROM cart WHERE id=%s AND user_id=%s", (cart_id, session['user_id']))
+    if not cart_item:
+        return redirect(url_for('cart'))
+    execute("DELETE FROM cart WHERE id=%s", (cart_id,))
+    flash("Item removed from cart.")
+    return redirect(url_for('cart'))
 
-    execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
-    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
-    flash("Membership payment confirmed. Welcome to " + user['membership'] + "!")
-    return redirect(url_for('membership'))
-
-# ORDERS PAGE
 @app.route('/orders', methods=['GET'])
 def orders():
     r = require_login()
@@ -535,7 +576,6 @@ def orders():
                        (session['user_id'],))
     return render_template('orders.html', orders=orders, content=orders_content)
 
-# ADD TO CART
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
     r = require_login()
@@ -544,13 +584,11 @@ def add_to_cart(product_id):
 
     product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
     if not product:
-        flash("Product not found.")
         return redirect(url_for('shop'))
 
     # Check stock availability
     stock_qty = int(product.get('stock_qty', 0))
     if stock_qty <= 0:
-        flash("This product is out of stock.")
         return redirect(url_for('shop'))
 
     try:
@@ -559,7 +597,6 @@ def add_to_cart(product_id):
         quantity = 1
 
     if quantity > stock_qty:
-        flash(f"Only {stock_qty} items available in stock.")
         return redirect(url_for('shop'))
 
     payment_method = request.form.get('payment_method', 'Cash on Delivery')
@@ -567,59 +604,19 @@ def add_to_cart(product_id):
     # Check if item already in cart
     existing = query_one("SELECT * FROM cart WHERE user_id=%s AND product_id=%s", (session['user_id'], product_id))
     if existing:
-        # Update quantity
         new_quantity = existing['quantity'] + quantity
         if new_quantity > stock_qty:
-            flash(f"Only {stock_qty} items available in stock.")
-            return redirect(url_for('shop'))
+            flash(admin_dashboard_content['access_denied'])
         execute("UPDATE cart SET quantity=%s WHERE id=%s", (new_quantity, existing['id']))
     else:
-        # Add new item to cart
-        execute("INSERT INTO cart (user_id, product_id, quantity, payment_method) VALUES (%s, %s, %s, %s)",
+        execute("INSERT INTO cart (user_id, product_id, quantity, payment_method, added_at) VALUES (%s, %s, %s, %s, NOW())",
                 (session['user_id'], product_id, quantity, payment_method))
 
     flash("Item added to cart.")
     return redirect(url_for('cart'))
 
-# CART PAGE
-@app.route('/cart')
-def cart():
-    r = require_login()
-    if r:
-        return r
-
-    cart_items = query_all("""
-        SELECT c.*, p.name AS product_name, p.price, p.image, (c.quantity * p.price) AS total_price
-        FROM cart c
-        JOIN products p ON c.product_id = p.id
-        WHERE c.user_id=%s
-        ORDER BY c.added_at DESC
-    """, (session['user_id'],))
-
-    grand_total = sum(item['total_price'] for item in cart_items)
-
-    return render_template('cart.html', cart_items=cart_items, grand_total=grand_total)
-
-# REMOVE FROM CART
-@app.route('/remove_from_cart/<int:cart_id>', methods=['POST'])
-def remove_from_cart(cart_id):
-    r = require_login()
-    if r:
-        return r
-
-    # Ensure the cart item belongs to the user
-    cart_item = query_one("SELECT * FROM cart WHERE id=%s AND user_id=%s", (cart_id, session['user_id']))
-    if not cart_item:
-        flash("Cart item not found.")
-        return redirect(url_for('cart'))
-
-    execute("DELETE FROM cart WHERE id=%s", (cart_id,))
-    flash("Item removed from cart.")
-    return redirect(url_for('cart'))
-
-# CHECKOUT
-@app.route('/checkout', methods=['POST'])
-def checkout():
+@app.route('/checkout_cart', methods=['POST'])
+def checkout_cart():
     r = require_login()
     if r:
         return r
@@ -634,12 +631,9 @@ def checkout():
     for item in cart_items:
         product = query_one("SELECT * FROM products WHERE id=%s", (item['product_id'],))
         if not product:
-            flash("Product not found.")
             return redirect(url_for('cart'))
-
         stock_qty = int(product.get('stock_qty', 0))
         if item['quantity'] > stock_qty:
-            flash("Insufficient stock for some items.")
             return redirect(url_for('cart'))
 
     # Step 2: Process all orders and update stock
@@ -647,7 +641,6 @@ def checkout():
     try:
         for item in cart_items:
             product = query_one("SELECT * FROM products WHERE id=%s", (item['product_id'],))
-
             # Calculate prices
             price = float(product.get('price', 0))
             total_price = price * item['quantity']
@@ -657,7 +650,7 @@ def checkout():
                 if user['membership'] == 'Silver':
                     discount = 0.05
                 elif user['membership'] == 'Gold':
-                    discount = 0.10
+                    discount = 0.1
                 elif user['membership'] == 'Platinum':
                     discount = 0.15
 
@@ -670,12 +663,11 @@ def checkout():
 
             if order_id:
                 created_orders.append(order_id)
-
                 # Decrement stock only after successful order creation
                 new_stock = int(product.get('stock_qty', 0)) - item['quantity']
                 execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, item['product_id']))
             else:
-                raise Exception("Failed to create order")
+                raise Exception("Order creation failed")
 
         # Step 3: Clear the cart after successful checkout
         execute("DELETE FROM cart WHERE user_id=%s", (session['user_id'],))
@@ -692,76 +684,58 @@ def checkout():
                 if product:
                     restored_stock = int(product.get('stock_qty', 0)) + order['quantity']
                     execute("UPDATE products SET stock_qty=%s WHERE id=%s", (restored_stock, order['product_id']))
-
                 # Delete the order
                 execute("DELETE FROM orders WHERE id=%s", (order_id,))
 
         flash("Checkout failed. Please try again.")
         return redirect(url_for('cart'))
 
-# PLACE ORDER (direct order from shop)
-@app.route('/place_order/<int:product_id>', methods=['POST'])
-def place_order(product_id):
+@app.route('/admin_orders', methods=['GET', 'POST'])
+def admin_orders():
     r = require_login()
     if r:
         return r
 
-    product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
-    if not product:
-        flash("Product not found.")
-        return redirect(url_for('shop'))
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
 
-    # Check stock availability
-    stock_qty = int(product.get('stock_qty', 0))
-    if stock_qty <= 0:
-        flash("This product is out of stock.")
-        return redirect(url_for('shop'))
+    if request.method == 'POST':
+        order_id = request.form.get('order_id')
+        status = request.form.get('status')
+        if order_id and status in ['pending', 'paid', 'delivered', 'cancelled']:
+            execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
+            flash(admin_orders_content['status_updated'])
+        else:
+            flash(admin_orders_content['invalid_status'])
+        return redirect(url_for('admin_orders'))
 
-    try:
-        quantity = int(request.form.get('quantity', 1))
-    except ValueError:
-        quantity = 1
+    orders = query_all("""SELECT o.*, u.username, u.full_name, u.address, p.name AS product_name, p.price, p.image
+                          FROM orders o
+                          JOIN users u ON o.user_id = u.id
+                          JOIN products p ON o.product_id = p.id
+                          ORDER BY o.order_date DESC""")
 
-    if quantity > stock_qty:
-        flash(f"Only {stock_qty} items available in stock.")
-        return redirect(url_for('shop'))
+    return render_template('admin/admin_orders.html', orders=orders, content=admin_orders_content)
 
-    payment_method = request.form.get('payment_method', 'Cash on Delivery')
+@app.route('/admin_shop')
+def admin_shop():
+    r = require_login()
+    if r:
+        return r
 
-    # ensure price numeric
-    try:
-        price = float(product.get('price', 0))
-    except Exception:
-        price = 0.0
+    # Admin check
+    if session.get('role') != 'admin':
+        flash(admin_dashboard_content['access_denied'])
+        return redirect(url_for('home'))
 
-    total_price = price * quantity
+    # Fetch all products for admin shop view
+    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    return render_template('admin/admin_shop.html', products=products, content=admin_shop_content)
 
-    # Apply membership discounts
-    user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
-    discount = 0.0
-    if user and user['membership']:
-        if user['membership'] == 'Silver':
-            discount = 0.05
-        elif user['membership'] == 'Gold':
-            discount = 0.10
-        elif user['membership'] == 'Platinum':
-            discount = 0.15
-
-    discounted_price = total_price * (1 - discount)
-
-    # Decrement stock quantity
-    new_stock = stock_qty - quantity
-    execute("UPDATE products SET stock_qty=%s WHERE id=%s", (new_stock, product_id))
-
-    execute("""INSERT INTO orders (user_id, product_id, quantity, original_price, discount_applied, total_price, payment_method, payment_status, status, order_date)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, 'unpaid', 'pending', NOW())""",
-            (session['user_id'], product_id, quantity, total_price, discount, discounted_price, payment_method))
-
-    flash(orders_content['order_placed'])
-    return redirect(url_for('orders'))
-
-@app.route('/confirm_bulk_payment', methods=['POST'])
-def confirm_bulk_payment():
+@app.route('/update_payment_method', methods=['POST'])
+def update_payment_method():
     r = require_login()
     if r:
         return r
@@ -796,8 +770,13 @@ def confirm_bulk_payment():
             continue
 
         # Update payment method and status
-        execute("UPDATE orders SET payment_method=%s, payment_status='paid' WHERE id=%s",
-               (payment_method, order_id))
+        if payment_method == 'Cash on Delivery':
+            payment_status = 'unpaid'
+        else:
+            payment_status = 'paid'
+
+        execute("UPDATE orders SET payment_method=%s, payment_status=%s WHERE id=%s",
+               (payment_method, payment_status, order_id))
         updated_count += 1
 
     if updated_count > 0:
@@ -813,7 +792,6 @@ def cancel_selected_orders():
         return r
 
     selected_orders = request.form.getlist('selected_orders')
-
     if not selected_orders:
         flash("No orders selected.")
         return redirect(url_for('orders'))
@@ -825,8 +803,9 @@ def cancel_selected_orders():
         except ValueError:
             continue
 
-        # Ensure the order belongs to the user and is not delivered
-        order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s AND status != 'delivered'", (order_id, session['user_id']))
+        # Ensure the order belongs to the user and is pending
+        order = query_one("SELECT * FROM orders WHERE id=%s AND user_id=%s AND status='pending'",
+                         (order_id, session['user_id']))
         if not order:
             continue
 
@@ -845,40 +824,6 @@ def cancel_selected_orders():
     else:
         flash("No orders were cancelled.")
     return redirect(url_for('orders'))
-
-@app.route('/admin_orders')
-def admin_orders():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    orders = query_all("""SELECT o.*, u.username, u.full_name, u.address, p.name AS product_name, p.price, p.image
-                          FROM orders o
-                          JOIN users u ON o.user_id = u.id
-                          JOIN products p ON o.product_id = p.id
-                          ORDER BY o.order_date DESC""")
-
-    return render_template('admin/admin_orders.html', orders=orders, content=admin_dashboard_content)
-
-@app.route('/admin_shop')
-def admin_shop():
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    # Fetch all products for admin shop view
-    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_shop.html', products=products, content=admin_dashboard_content)
 
 # PRODUCTS (ADMIN CRUD)
 @app.route('/admin_products', methods=['GET', 'POST'])
@@ -942,8 +887,8 @@ def admin_products(id=None):
             stock_qty = request.form.get('stock_qty', '0').strip()
             category = request.form.get('category')
 
-            # Handle image update
-            image_filename = product['image']  # Keep existing image
+            # Handle image upload
+            image_filename = product['image']  # Default to existing
             if 'image' in request.files:
                 file = request.files['image']
                 if file and allowed_file(file.filename):
@@ -951,18 +896,19 @@ def admin_products(id=None):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                     image_filename = filename
 
-            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s
-                       WHERE id=%s""",
+            if not name:
+                flash("Name is required.")
+                return redirect(url_for('admin_products', id=id))
+
+            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s WHERE id=%s""",
                     (name, description, price, stock_qty, category, image_filename, id))
             flash(products_content['product_updated'])
             return redirect(url_for('admin_products'))
 
-        # GET single product -> show edit form
-        return render_template('admin/product_edit.html', product=product, content=products_content)
+    # Fetch products for listing
+    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
 
-    # --- LIST ALL PRODUCTS ---
-    products_list = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_products.html', products=products_list, content=products_content)
+    return render_template('admin/admin_products.html', products=products, product=product if id else None, content=admin_products_content)
 
 @app.route('/admin_dashboard')
 def admin_dashboard():
@@ -975,7 +921,7 @@ def admin_dashboard():
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
 
-    # Calculate stats for display
+    # Calculate stats
     total_products_row = query_one("SELECT COUNT(*) as count FROM products")
     total_orders_row = query_one("SELECT COUNT(*) as count FROM orders")
     total_users_row = query_one("SELECT COUNT(*) as count FROM users")
@@ -984,41 +930,7 @@ def admin_dashboard():
     total_orders = total_orders_row['count'] if total_orders_row else 0
     total_users = total_users_row['count'] if total_users_row else 0
 
-    # Get product stocks
-    products_stocks = query_all("SELECT id, name, stock_qty FROM products ORDER BY stock_qty ASC")
-
-    return render_template('admin/dashboard.html', total_products=total_products, total_orders=total_orders, total_users=total_users, products_stocks=products_stocks, content=admin_dashboard_content)
-
-@app.route('/admin_update_order_status/<int:order_id>', methods=['POST'])
-def admin_update_order_status(order_id):
-    r = require_login()
-    if r:
-        return r
-
-    # Admin check
-    if session.get('role') != 'admin':
-        flash(admin_dashboard_content['access_denied'])
-        return redirect(url_for('home'))
-
-    status = request.form.get('status')
-    if status not in ['pending', 'shipped', 'delivered']:
-        flash('Invalid status.')
-        return redirect(url_for('admin_orders'))
-
-    # If status is 'delivered', also mark payment as paid if unpaid
-    if status == 'delivered':
-        order = query_one("SELECT payment_status FROM orders WHERE id=%s", (order_id,))
-        if order and order['payment_status'] == 'unpaid':
-            execute("UPDATE orders SET status=%s, payment_status='paid', payment_method='Cash on Delivery' WHERE id=%s", (status, order_id))
-        else:
-            execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
-        flash('Order status updated to delivered and payment marked as paid.')
-    else:
-        execute("UPDATE orders SET status=%s WHERE id=%s", (status, order_id))
-        flash('Order status updated successfully.')
-
-    return redirect(url_for('admin_orders'))
-
+    return render_template('admin/admin_dashboard.html', total_products=total_products, total_orders=total_orders, total_users=total_users, content=admin_dashboard_content)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

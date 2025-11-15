@@ -41,7 +41,7 @@
           <h5 class="card-title text-light">{{ p.name }}</h5>
           <p class="text-secondary small flex-grow-1">{{ p.description or "No description available." }}</p>
           <p class="fw-bold text-info mb-3">₱{{ "%.2f"|format(p.price) }}</p>
-          <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
+          <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST">
             <div class="input-group">
               <input type="number" name="quantity" class="form-control form-control-sm" value="1" min="1">
               <button class="btn btn-sm btn-primary" type="submit">Buy Now</button>

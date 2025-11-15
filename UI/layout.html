@@ -22,7 +22,7 @@
 
   <style>
     :root {
-      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #fd8e05 100%);
       --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
       --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
@@ -310,7 +310,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="{{ url_for('logout') }}" class="nav-link px-3 py-2 text-warning">
+            <a href="{{ url_for('logout') }}" class="nav-link px-3 py-2 text-warning" onclick="return confirm('Are you sure you want to logout?')">
               <i class="fas fa-sign-out-alt me-1"></i>Logout
             </a>
           </li>

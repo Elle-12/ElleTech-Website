@@ -369,7 +369,7 @@
     <div class="summary-content">
       <div class="grand-total-label">Grand Total</div>
       <div class="grand-total-amount">₱{{ "%.2f"|format(grand_total) }}</div>
-      <form method="POST" action="{{ url_for('checkout') }}" class="d-inline">
+      <form method="POST" action="{{ url_for('checkout_cart') }}" class="d-inline">
         <button type="submit" class="checkout-btn">
           <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
         </button>

@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='shop.css') }}">
 <style>
 .shop-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #8e9de1 0%, #a77501 100%);
   padding: 4rem 0;
   text-align: center;
   position: relative;
@@ -96,7 +96,7 @@
 }
 
 .filter-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4e61b6 0%, #c0822b 100%);
   border: none;
   padding: 0.75rem 2rem;
   font-weight: 600;
@@ -110,7 +110,7 @@
 .filter-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  background: linear-gradient(135deg, #b3884d 0%, #667eea 100%);
 }
 
 .products-grid {
@@ -241,23 +241,23 @@
 }
 
 .btn-add-cart {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #4d7aa2 0%, #63bd4c 100%);
   color: white;
 }
 
 .btn-add-cart:hover {
-  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  background: linear-gradient(135deg, #49a748 0%, #40729d 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
 }
 
 .btn-order-now {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #667eea 0%, #bd7d29 100%);
   color: white;
 }
 
 .btn-order-now:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  background: linear-gradient(135deg, #ab6515 0%, #667eea 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
@@ -377,7 +377,7 @@ select option {
             {% endif %}
 
             <div class="product-actions">
-             <form action="{{ url_for('place_order', product_id=p.id) }}" method="POST">
+             <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST">
     <!-- PAYMENT METHOD -->
     <div class="mb-2">
         <select name="payment_method" class="form-select form-select-sm">
