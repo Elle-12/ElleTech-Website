@@ -2,7 +2,7 @@
 {% block head %}
 <style>
 .cart-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4153a3 0%, #b7904283 100%);
   padding: 3rem 0;
   text-align: center;
   position: relative;
@@ -17,7 +17,7 @@
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 30% 70%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 30% 70%, rgba(100, 97, 250, 0.47) 0%, transparent 50%),
     radial-gradient(circle at 70% 30%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
   animation: float 18s ease-in-out infinite;
 }
@@ -264,7 +264,7 @@
 }
 
 .shop-now-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #667eea94 0%, #764ba244 100%);
   border: none;
   padding: 1rem 2rem;
   font-weight: 600;
@@ -272,6 +272,7 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: #ffffff;
 }
 
 .shop-now-btn:hover {
@@ -369,7 +370,7 @@
     <div class="summary-content">
       <div class="grand-total-label">Grand Total</div>
       <div class="grand-total-amount">₱{{ "%.2f"|format(grand_total) }}</div>
-      <form method="POST" action="{{ url_for('checkout_cart') }}" class="d-inline">
+      <form method="POST" action="{{ url_for('checkout') }}" class="d-inline">
         <button type="submit" class="checkout-btn">
           <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
         </button>

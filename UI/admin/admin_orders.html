@@ -32,7 +32,8 @@
           <p class="fw-bold text-info mb-2">₱{{ "%.2f"|format(order.total_price) }}</p>
           <p class="text-secondary small mb-2">Payment: {{ order.payment_method }} ({{ order.payment_status }})</p>
           <p class="text-secondary small mb-3">Date: {{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</p>
-          <form method="POST" action="{{ url_for('admin_update_order_status', order_id=order.id) }}">
+          <form method="POST" action="{{ url_for('admin_orders') }}">
+            <input type="hidden" name="order_id" value="{{ order.id }}">
             <div class="d-flex gap-2">
               <select name="status" class="form-select form-select-sm">
                 <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>

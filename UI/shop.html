@@ -396,14 +396,13 @@ select option {
                value="1" min="1">
 
         <!-- ADD TO CART BUTTON -->
-        <button formaction="{{ url_for('add_to_cart', product_id=p.id) }}"
-                formmethod="POST"
+        <button type="submit" name="action" value="add_to_cart"
                 class="btn-add-cart">
             Add to Cart
         </button>
 
         <!-- BUY NOW -->
-        <button class="btn-order-now" type="submit">
+        <button name="action" value="buy_now" class="btn-order-now" type="submit">
             Buy Now
         </button>
     </div>

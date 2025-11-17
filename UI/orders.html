@@ -5,7 +5,7 @@ const translations = JSON.parse("{{ content | tojson | safe }}");
 </script>
 <style>
 .orders-hero {
-  background: linear-gradient(135deg, #ff6b35 0%, #00d4ff 100%);
+  background: linear-gradient(135deg, #ff6b3554 0%, #00d5ff6a 100%);
   padding: 3rem 0;
   text-align: center;
   position: relative;
@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
   {% if orders %}
   <div class="orders-container">
     <!-- PENDING ORDERS -->
-    {% set pending_orders = orders | selectattr('status', 'in', ['pending', 'cancelled']) | list %}
+    {% set pending_orders = orders | selectattr('status', 'equalto', 'pending') | rejectattr('payment_status', 'equalto', 'paid') | list %}
     {% if pending_orders %}
     <div class="category-header">
       <h3 class="category-title">{{ content['pending_orders_title'] }}</h3>
@@ -768,14 +768,14 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     {% endif %}
 
-    <!-- PAID NOT DELIVERED ORDERS -->
-    {% set paid_not_delivered_orders = orders | selectattr('payment_status', 'equalto', 'paid') | selectattr('status', 'ne', 'delivered') | list %}
-    {% if paid_not_delivered_orders %}
+    <!-- PAID ORDERS NOT DELIVERED YET -->
+    {% set paid_not_delivered = orders | selectattr('payment_status', 'equalto', 'paid') | rejectattr('status', 'equalto', 'delivered') | list %}
+    {% if paid_not_delivered %}
     <div class="category-header">
-      <h3 class="category-title">{{ content['paid_not_delivered_orders_title'] }}</h3>
+      <h3 class="category-title">{{ content['paid_orders_title'] }}</h3>
     </div>
     <div class="row g-4 mb-4">
-      {% for o in paid_not_delivered_orders %}
+      {% for o in paid_not_delivered %}
       <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
         <div class="order-card h-100">
           {% if o.image %}
@@ -848,12 +848,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="category-header">
       <h3 class="category-title">{{ content['delivered_orders_title'] }}</h3>
     </div>
-    {% for category, orders_in_cat in delivered_orders | groupby('category') %}
-    <div class="sub-category-header">
-      <h4 class="sub-category-title">{{ category or 'Uncategorized' }}</h4>
-    </div>
     <div class="row g-4 mb-4">
-      {% for o in orders_in_cat %}
+      {% for o in delivered_orders %}
       <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
         <div class="order-card h-100">
           {% if o.image %}
@@ -915,7 +911,6 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       {% endfor %}
     </div>
-    {% endfor %}
     {% endif %}
   </div>
   <div class="bulk-actions">
@@ -949,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- PAYMENT MODAL -->
 <div id="payment-modal" class="payment-modal">
   <div class="payment-modal-content">
-    <form id="payment-form" method="POST" action="{{ url_for('update_payment_method') }}">
+    <form id="payment-form" method="POST" action="{{ url_for('complete_payment') }}">
       <div class="payment-modal-header">
         <h3 class="payment-modal-title">{{ content['complete_payment_title'] }}</h3>
         <button type="button" class="btn-close-modal">&times;</button>

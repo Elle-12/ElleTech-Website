@@ -15,6 +15,7 @@
   <div class="card bg-dark p-4 mb-4 shadow-sm">
     <h5 class="text-light mb-3">Add New Product</h5>
     <form method="POST" action="{{ url_for('admin_products') }}" enctype="multipart/form-data" class="row g-3">
+      <input type="hidden" name="action" value="add">
       <div class="col-md-6">
         <input name="name" class="form-control" placeholder="Product Name" required>
       </div>
@@ -45,6 +46,14 @@
     </form>
   </div>
 
+  <!-- Search Form -->
+  <div class="card bg-dark p-3 mb-4 shadow-sm">
+    <form method="GET" action="{{ url_for('admin_products') }}" class="d-flex">
+      <input type="text" name="search" class="form-control me-2" placeholder="Search products by name or description" value="{{ search_query }}">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+  </div>
+
   <!-- Product Grid -->
   <div class="row justify-content-center">
     {% for p in products %}
@@ -64,14 +73,7 @@
           <p class="text-secondary small mb-2">Stock: {{ p.stock_qty }}</p>
           <p class="text-secondary small mb-3">Category: {{ p.category or "N/A" }}</p>
           <div class="d-flex gap-2">
-            <form method="POST" action="{{ url_for('admin_products', id=p.id) }}" enctype="multipart/form-data" style="flex: 1;">
-              <input type="hidden" name="name" value="{{ p.name }}">
-              <input type="hidden" name="description" value="{{ p.description }}">
-              <input type="hidden" name="price" value="{{ p.price }}">
-              <input type="hidden" name="stock_qty" value="{{ p.stock_qty }}">
-              <input type="hidden" name="category" value="{{ p.category }}">
-              <button type="submit" class="btn btn-warning btn-sm w-100">Update</button>
-            </form>
+            <a href="{{ url_for('admin_products', id=p.id) }}" class="btn btn-warning btn-sm w-100">Edit</a>
             <form method="POST" action="{{ url_for('admin_products') }}" style="flex: 1;">
               <input type="hidden" name="_method" value="DELETE">
               <input type="hidden" name="delete_id" value="{{ p.id }}">
