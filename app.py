@@ -1,7 +1,6 @@
-
 import os
 from decimal import Decimal
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -287,15 +286,19 @@ def login():
         try:
             user = query_one("SELECT * FROM users WHERE username=%s OR email=%s", (username, username))
             if user and check_password_hash(user['password_hash'], password):
-                # Bypass OTP for testing
-                session['user_id'] = user['id']
-                session['username'] = user['username']
-                session['role'] = user.get('role', 'user')
-                flash('Login successful!')
-                if session['role'] == 'admin':
-                    return redirect(url_for('admin_dashboard'))
+                # Send OTP for verification
+                otp_code = send_and_store_otp(user['id'], user['email'], 'login')
+                if otp_code:
+                    session['pending_login'] = {
+                        'user_id': user['id'],
+                        'username': user['username'],
+                        'role': user.get('role', 'user'),
+                        'otp_code': otp_code
+                    }
+                    flash('OTP sent to your email. Please verify.')
+                    return redirect(url_for('otp_verify'))
                 else:
-                    return redirect(url_for('home'))
+                    msg = 'Failed to send OTP. Please try again.'
             else:
                 msg = login_content['invalid_credentials']
         except Exception as e:
@@ -520,9 +523,11 @@ def profile():
         execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
                 (request.form.get('full_name'), request.form.get('contact_no'),
                  request.form.get('address'), profile_pic_filename, session['user_id']))
+
         flash(profile_content['update_success'])
         return redirect(url_for('profile'))
     return render_template('profile.html', user=user, content=profile_content)
+
 # CART PAGE
 @app.route('/cart')
 def cart():
@@ -541,8 +546,7 @@ def cart():
     # Convert total_price to Decimal for safety
     grand_total = sum(Decimal(item['total_price']) for item in cart_items)
     return render_template('cart.html', cart_items=cart_items, grand_total=grand_total, content=cart_content)
-
-
+                
 # ADD TO CART
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
@@ -914,9 +918,6 @@ def admin_products(id=None):
                         filename = secure_filename(file.filename)
                         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                         image_filename = filename
-                if not name:
-                    flash(admin_products_content['name_required'])
-                    return redirect(url_for('admin_products', id=id))
                 execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s WHERE id=%s""",
                         (name, description, price, stock_qty, category, image_filename, id))
                 flash(products_content['product_updated'])

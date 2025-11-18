@@ -6,7 +6,324 @@
 select option {
   color: black;
 }
+
+/* Membership Modal Styles */
+.membership-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  display: none;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.membership-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(128, 128, 128, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.membership-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.membership-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.btn-close-modal {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.btn-close-modal:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.membership-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.membership-form-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.membership-select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.membership-select option {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.membership-select:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+  outline: none;
+}
+
+.membership-amount-display {
+  text-align: center;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 12px;
+}
+
+.membership-amount-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.5rem;
+}
+
+.membership-amount-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #ff6b35;
+}
+
+.btn-confirm-membership {
+  width: 100%;
+  background: linear-gradient(135deg, #ff6b35 0%, #00d4ff 100%);
+  border: none;
+  padding: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.btn-confirm-membership:hover {
+  background: linear-gradient(135deg, #00d4ff 0%, #ff6b35 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+}
+
+.membership-payment-details {
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  display: none;
+}
+
+.membership-payment-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ff6b35;
+  margin-bottom: 0.5rem;
+}
+
+.membership-account-info {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
+}
+
+.membership-account-number {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.membership-instruction {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.membership-input {
+  width: 100%;
+  background: rgba(253, 246, 246, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e3d7d7;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.membership-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+  outline: none;
+}
+
+.btn-update-membership {
+  background: linear-gradient(135deg, #ff6b35 0%, #00d4ff 100%);
+  border: none;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.btn-update-membership:hover {
+  background: linear-gradient(135deg, #00d4ff 0%, #ff6b35 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+}
+
+.btn-complete-payment {
+  background: linear-gradient(135deg, #00d4ff 0%, #4facfe 100%);
+  border: none;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.btn-complete-payment:hover {
+  background: linear-gradient(135deg, #4facfe 0%, #00d4ff 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+}
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const updateBtn = document.getElementById('update-membership-btn');
+    const paymentBtn = document.getElementById('complete-payment-btn');
+    const membershipModal = document.getElementById('membership-modal');
+    const paymentMethodSelect = document.getElementById('membership-payment-method');
+    const paymentDetails = document.getElementById('membership-payment-details');
+    const amountDisplay = document.getElementById('membership-amount');
+    const closeModalBtn = document.querySelector('.btn-close-modal');
+
+    updateBtn.addEventListener('click', function() {
+        membershipModal.style.display = 'flex';
+        updateAmount();
+    });
+
+    paymentBtn.addEventListener('click', function() {
+        membershipModal.style.display = 'flex';
+        document.getElementById('membership-modal-title').textContent = 'Complete Membership Payment';
+        document.getElementById('membership-form').action = '{{ url_for("confirm_membership_payment") }}';
+        document.getElementById('membership-reference').style.display = 'block';
+        document.getElementById('membership-reference').required = true;
+        updateAmount();
+    });
+
+    closeModalBtn.addEventListener('click', function() {
+        membershipModal.style.display = 'none';
+    });
+
+    membershipModal.addEventListener('click', function(e) {
+        if (e.target === membershipModal) {
+            membershipModal.style.display = 'none';
+        }
+    });
+
+    paymentMethodSelect.addEventListener('change', function() {
+        const method = this.value;
+        if (method === 'Cash on Delivery') {
+            paymentDetails.style.display = 'none';
+        } else {
+            paymentDetails.style.display = 'block';
+            if (method === 'GCash') {
+                document.getElementById('membership-account-label').textContent = 'GCash Number:';
+                document.getElementById('membership-account-number').textContent = '09917452192';
+            } else if (method === 'PayMaya') {
+                document.getElementById('membership-account-label').textContent = 'PayMaya Account:';
+                document.getElementById('membership-account-number').textContent = '09917452192';
+            }
+        }
+    });
+
+    function updateAmount() {
+        const membership = document.getElementById('membership-select').value;
+        let amount = 'Free';
+        if (membership === 'Silver') amount = '₱500';
+        else if (membership === 'Gold') amount = '₱1,000';
+        else if (membership === 'Platinum') amount = '₱2,000';
+        amountDisplay.textContent = amount;
+    }
+
+    document.getElementById('membership-select').addEventListener('change', updateAmount);
+
+    // AJAX for membership update
+    document.getElementById('membership-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload(); // Reload to update status
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+        membershipModal.style.display = 'none';
+    });
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -51,27 +368,25 @@ select option {
 
 <div class="card bg-dark p-4">
   <h4 class="text-light mb-3">Update Membership</h4>
-  <form method="POST">
-    <div class="row g-2">
-      <div class="col-md-4">
-        <select name="membership" class="form-select">
-          <option value="Basic" {% if user.membership == 'Basic' %}selected{% endif %}>Basic (Free)</option>
-          <option value="Silver" {% if user.membership == 'Silver' %}selected{% endif %}>Silver (Paid)</option>
-          <option value="Gold" {% if user.membership == 'Gold' %}selected{% endif %}>Gold (Paid)</option>
-          <option value="Platinum" {% if user.membership == 'Platinum' %}selected{% endif %}>Platinum (Paid)</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <select name="payment_method" class="form-select">
-          <option value="GCash">GCash</option>
-          <option value="PayMaya">PayMaya</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <button class="btn btn-primary">Update Membership</button>
-      </div>
+  <div class="row g-2">
+    <div class="col-md-4">
+      <select id="membership-select" class="form-select">
+        <option value="Basic" {% if user.membership == 'Basic' %}selected{% endif %}>Basic (Free)</option>
+        <option value="Silver" {% if user.membership == 'Silver' %}selected{% endif %}>Silver (Paid)</option>
+        <option value="Gold" {% if user.membership == 'Gold' %}selected{% endif %}>Gold (Paid)</option>
+        <option value="Platinum" {% if user.membership == 'Platinum' %}selected{% endif %}>Platinum (Paid)</option>
+      </select>
     </div>
-  </form>
+    <div class="col-md-4">
+      <select id="membership-payment-method" class="form-select">
+        <option value="GCash">GCash</option>
+        <option value="PayMaya">PayMaya</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <button id="update-membership-btn" class="btn-update-membership">Update Membership</button>
+    </div>
+  </div>
 </div>
 
 {% if user.membership_payment_status == 'unpaid' and user.membership in ['Silver', 'Gold', 'Platinum'] %}
@@ -90,14 +405,61 @@ select option {
   {% endif %}
   <p><strong>GCash Number:</strong> 09917452192</p>
   <p><strong>PayMaya Account:</strong> 09917452192</p>
-  <form method="POST" action="{{ url_for('confirm_membership_payment') }}" class="mt-2">
-    <div class="mb-2">
-      <label for="reference" class="form-label text-dark">Reference/Transaction ID:</label>
-      <input type="text" name="reference" id="reference" class="form-control" required>
-    </div>
-    <button type="submit" class="btn btn-success">Confirm Payment</button>
-  </form>
+  <button id="complete-payment-btn" class="btn-complete-payment">Complete Payment</button>
 </div>
 {% endif %}
+
+<!-- MEMBERSHIP MODAL -->
+<div id="membership-modal" class="membership-modal">
+  <div class="membership-modal-content">
+    <div class="membership-modal-header">
+      <h3 id="membership-modal-title" class="membership-modal-title">Update Membership</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+
+    <form id="membership-form" method="POST" action="{{ url_for('membership') }}">
+      <div class="membership-form-group">
+        <label for="membership-select-modal" class="membership-form-label">Select Membership</label>
+        <select name="membership" id="membership-select-modal" class="membership-select">
+          <option value="Basic">Basic (Free)</option>
+          <option value="Silver">Silver (Paid)</option>
+          <option value="Gold">Gold (Paid)</option>
+          <option value="Platinum">Platinum (Paid)</option>
+        </select>
+      </div>
+
+      <div class="membership-form-group">
+        <label for="membership-payment-method-modal" class="membership-form-label">Payment Method</label>
+        <select name="payment_method" id="membership-payment-method-modal" class="membership-select">
+          <option value="GCash">GCash</option>
+          <option value="PayMaya">PayMaya</option>
+        </select>
+      </div>
+
+      <div id="membership-reference" class="membership-form-group" style="display: none;">
+        <label for="reference" class="membership-form-label">Reference/Transaction ID</label>
+        <input type="text" name="reference" id="reference" class="membership-input" placeholder="Enter reference">
+      </div>
+
+      <div class="membership-payment-details" id="membership-payment-details">
+        <h4 class="membership-payment-title">Payment Details</h4>
+        <p class="membership-account-info">
+          <strong id="membership-account-label"></strong>
+          <span class="membership-account-number" id="membership-account-number"></span>
+        </p>
+        <p class="membership-instruction">Send the payment to the above account and enter the reference number to confirm.</p>
+      </div>
+
+      <div class="membership-amount-display">
+        <div class="membership-amount-label">Amount</div>
+        <div class="membership-amount-value" id="membership-amount">Free</div>
+      </div>
+
+      <button type="submit" class="btn-confirm-membership">
+        Confirm <i class="fas fa-check me-2"></i>
+      </button>
+    </form>
+  </div>
+</div>
 
 {% endblock %}

@@ -62,10 +62,41 @@
 }
 
 .btn-add-cart, .btn-order-now {
-  font-size: 0.8rem;
+  flex: 1;
+  height: 36px;
   padding: 0.4rem 0.8rem;
-  border-radius: 10px;
+  font-weight: 300;
+  border-radius: 12px;
+  transition: all 0.3s ease;
   text-transform: uppercase;
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.btn-add-cart {
+  background: linear-gradient(135deg, #4d7aa2 0%, #63bd4c 100%);
+  color: white;
+}
+
+.btn-add-cart:hover {
+  background: linear-gradient(135deg, #49a748 0%, #40729d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+}
+
+.btn-order-now {
+  background: linear-gradient(135deg, #667eea 0%, #bd7d29 100%);
+  color: white;
+}
+
+.btn-order-now:hover {
+  background: linear-gradient(135deg, #ab6515 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
 
 /* --- FEATURES SECTION --- */
@@ -140,8 +171,8 @@
               </div>
               <div class="input-group mb-2">
                 <input type="number" name="quantity" class="form-control quantity-input" value="1" min="1">
-                <button name="action" value="add_to_cart" type="submit" class="btn btn-primary btn-add-cart">Add to Cart</button>
-                <button name="action" value="buy_now" type="submit" class="btn btn-info btn-order-now">Buy Now</button>
+                <button name="action" value="add_to_cart" type="submit" class="btn-add-cart">Add to Cart</button>
+                <button name="action" value="buy_now" type="submit" class="btn-order-now">Buy Now</button>
               </div>
             </form>
 
