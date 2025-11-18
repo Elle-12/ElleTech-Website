@@ -44,6 +44,7 @@
           <li class="nav-item"><a href="{{ url_for('admin_shop') }}" class="nav-link">Shop</a></li>
           <li class="nav-item"><a href="{{ url_for('admin_products') }}" class="nav-link {% if request.endpoint == 'admin_products' %}active{% endif %}">Products</a></li>
           <li class="nav-item"><a href="{{ url_for('admin_orders') }}" class="nav-link {% if request.endpoint == 'admin_orders' %}active{% endif %}">Orders</a></li>
+          <li class="nav-item"><a href="{{ url_for('admin_chat') }}" class="nav-link {% if request.endpoint == 'admin_chat' %}active{% endif %}">Chat</a></li>
           <li class="nav-item"><a href="{{ url_for('logout') }}" class="nav-link text-warning">Logout</a></li>
         </ul>
       </div>

@@ -1,3 +1,4 @@
+
 import os
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, session, flash
@@ -500,6 +501,7 @@ def confirm_membership_payment():
         flash("No unpaid membership to confirm.")
         return redirect(url_for('membership'))
 
+# PROFILE DISPLAY AND EDIT
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     r = require_login()
@@ -507,40 +509,20 @@ def profile():
         return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     if request.method == 'POST':
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
-        username = request.form.get('username', '').strip()
-        contact_no = request.form.get('contact_no', '').strip()
-        address = request.form.get('address', '').strip()
+        profile_pic_filename = user.get('profile_pic')  # Keep existing
+        if 'profile_pic' in request.files:
+            file = request.files['profile_pic']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                profile_pic_filename = filename
 
-        # Validation: Check if email or username already exists for another user
-        existing_email = query_one("SELECT * FROM users WHERE email=%s AND id != %s", (email, session['user_id']))
-        if existing_email:
-            flash("Email already exists.")
-            return redirect(url_for('profile'))
-
-        existing_username = query_one("SELECT * FROM users WHERE username=%s AND id != %s", (username, session['user_id']))
-        if existing_username:
-            flash("Username already exists.")
-            return redirect(url_for('profile'))
-
-        try:
-            profile_pic_filename = user.get('profile_pic')  # Default to existing
-            if 'profile_pic' in request.files:
-                file = request.files['profile_pic']
-                if file and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                    profile_pic_filename = filename
-            execute("UPDATE users SET full_name=%s, email=%s, username=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
-                    (full_name, email, username, contact_no, address, profile_pic_filename, session['user_id']))
-            flash(profile_content['update_success'])
-            return redirect(url_for('profile'))
-        except Exception as e:
-            flash("Update failed. Please try again.")
-            return redirect(url_for('profile'))
+        execute("UPDATE users SET full_name=%s, contact_no=%s, address=%s, profile_pic=%s WHERE id=%s",
+                (request.form.get('full_name'), request.form.get('contact_no'),
+                 request.form.get('address'), profile_pic_filename, session['user_id']))
+        flash(profile_content['update_success'])
+        return redirect(url_for('profile'))
     return render_template('profile.html', user=user, content=profile_content)
-
 # CART PAGE
 @app.route('/cart')
 def cart():

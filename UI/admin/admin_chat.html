@@ -1,0 +1,117 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}Admin Chat{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-chat-container">
+    <div class="users-list">
+        <h5 class="p-3 mb-0">Users</h5>
+        <div id="users-list" class="list-group list-group-flush">
+            <!-- Users will be loaded here -->
+        </div>
+    </div>
+    <div class="chat-area">
+        <div class="chat-header">
+            Select a user to start chatting
+        </div>
+        <div id="chat-container" class="chat-messages">
+            <!-- Messages will be loaded here -->
+        </div>
+        <div class="chat-input-area" id="message-form" style="display: none;">
+            <form>
+                <div class="input-group">
+                    <input type="text" id="message-input" class="form-control" placeholder="Type your message..." required>
+                    <button type="submit" class="btn-send">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedUserId = null;
+
+    // Function to load users
+    function loadUsers() {
+        fetch('/admin_get_users')
+            .then(response => response.json())
+            .then(data => {
+                const usersList = document.getElementById('users-list');
+                usersList.innerHTML = '';
+                data.users.forEach(user => {
+                    const userDiv = document.createElement('a');
+                    userDiv.className = 'list-group-item list-group-item-action';
+                    userDiv.href = '#';
+                    userDiv.textContent = user.username;
+                    userDiv.onclick = () => selectUser(user.id);
+                    usersList.appendChild(userDiv);
+                });
+            });
+    }
+
+    // Select user
+    function selectUser(userId) {
+        selectedUserId = userId;
+        document.getElementById('message-form').style.display = 'block';
+        loadMessages();
+    }
+
+    // Function to load messages
+    function loadMessages() {
+        if (!selectedUserId) return;
+        fetch(`/admin_get_messages?user_id=${selectedUserId}`)
+            .then(response => response.json())
+            .then(data => {
+                const chatContainer = document.getElementById('chat-container');
+                chatContainer.innerHTML = '';
+                data.messages.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = msg.sender_id == selectedUserId ? 'message admin' : 'message user';
+                    msgDiv.innerHTML = `
+                        <div class="message-sender">${msg.sender_username}</div>
+                        <div class="message-bubble">${msg.message}</div>
+                        <div class="message-timestamp">${msg.timestamp}</div>
+                    `;
+                    chatContainer.appendChild(msgDiv);
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+    }
+
+    // Send message
+    document.getElementById('message-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = document.getElementById('message-input').value;
+        fetch('/admin_send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message, receiver_id: selectedUserId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('message-input').value = '';
+                loadMessages();
+            } else {
+                alert('Failed to send message');
+            }
+        });
+    });
+
+    // Load users on page load and poll every 10 seconds
+    loadUsers();
+    setInterval(loadUsers, 10000);
+    // Load messages every 5 seconds if user selected
+    setInterval(() => {
+        if (selectedUserId) loadMessages();
+    }, 5000);
+</script>
+{% endblock %}

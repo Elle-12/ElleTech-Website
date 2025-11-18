@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Chat with Admin{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="chat-container" data-user-id="{{ session['user_id'] }}">
+        <div class="chat-header">
+            Chat with Admin
+        </div>
+        <div id="chat-container" class="messages-container">
+            <!-- Messages will be loaded here -->
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <input type="text" id="message-input" class="form-control" placeholder="Type your message...">
+                <button type="button" id="send-button" class="btn-send">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const userId = document.querySelector('.container').getAttribute('data-user-id');
+
+    // Function to load messages
+    function loadMessages() {
+        fetch('/get_messages')
+            .then(response => response.json())
+            .then(data => {
+                const chatContainer = document.getElementById('chat-container');
+                chatContainer.innerHTML = '';
+                data.messages.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = msg.sender_id == userId ? 'message user' : 'message admin';
+                    msgDiv.innerHTML = `
+                        <div class="message-sender">${msg.sender_username}</div>
+                        <div class="message-bubble">${msg.message}</div>
+                        <div class="message-timestamp">${msg.timestamp}</div>
+                    `;
+                    chatContainer.appendChild(msgDiv);
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+    }
+
+    // Send message
+    function sendMessage() {
+        const message = document.getElementById('message-input').value.trim();
+        if (!message) return; // Prevent sending empty messages
+        fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('message-input').value = '';
+                loadMessages();
+            } else {
+                alert('Failed to send message');
+            }
+        });
+    }
+
+    document.getElementById('send-button').addEventListener('click', sendMessage);
+
+    document.getElementById('message-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Load messages on page load and poll every 5 seconds
+    loadMessages();
+    setInterval(loadMessages, 5000);
+</script>
+{% endblock %}

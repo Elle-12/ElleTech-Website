@@ -67,5 +67,5 @@ def send_and_store_otp(user_id, email, otp_type='login'):
     otp_code = generate_otp()
     if send_otp_email(email, otp_code):
         store_otp(user_id, otp_code, otp_type)
-        return True
+        return otp_code
     return False

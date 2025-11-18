@@ -374,20 +374,6 @@
         }
       });
     });
-
-    // Add loading animation to buttons
-    document.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        if (this.form && !this.form.checkValidity()) return;
-        const originalText = this.innerHTML;
-        this.innerHTML = '<span class="loading me-2"></span>Processing...';
-        this.disabled = true;
-        setTimeout(() => {
-          this.innerHTML = originalText;
-          this.disabled = false;
-        }, 2000);
-      });
-    });
   </script>
 </body>
 </html>
