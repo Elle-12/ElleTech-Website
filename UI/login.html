@@ -5,13 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login | ElleTech</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-image: url('/static/img/bglogin.jpg'); 
-      background-size: cover;        
-      background-position: center;    
-      background-repeat: no-repeat;  
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-image: url('/static/img/bglogin.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       background-color: #0d1117;
       margin: 0;
       padding: 0;
@@ -21,105 +26,301 @@
       align-items: center;
       color: white;
     }
+
     .auth-container {
       display: flex;
       justify-content: center;
       align-items: center;
       width: 100%;
+      padding: 20px;
     }
+
     .auth-card {
-      background-color: #1a222b;
-      padding: 2rem;
-      border-radius: 15px;
-      width: 350px;
-      box-shadow: 0 0 20px rgba(63, 154, 228, 0.4);
+      background: rgba(26, 34, 43, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(63, 154, 228, 0.3);
+      padding: 2.5rem;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
       text-align: center;
     }
+
     .auth-logo {
-      margin-top: 10%;
-      width: 120px;
-      height: 120px;
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
       object-fit: cover;
       border: 2px solid #3f9ae4;
-      background-color: #1a222b;
-      box-shadow: 0 0 10px #3f9ae4;
-      margin-bottom: 1rem;
+      box-shadow: 0 0 20px rgba(63, 154, 228, 0.5);
+      margin-bottom: 1.5rem;
     }
+
     h2 {
       margin-bottom: 1.5rem;
       font-weight: 700;
       color: #3f9ae4;
+      font-size: 1.8rem;
     }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
     .form-control {
-      margin-left: -10px;
       width: 100%;
-      padding: 10px;
-      margin-bottom: 1rem;
-      border: none;
-      border-radius: 8px;
-      background-color: #2a323c;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
       color: white;
-      font-size: 14px;
+      font-size: 16px;
       outline: none;
-      transition: 0.2s;
+      transition: all 0.3s ease;
     }
+
     .form-control:focus {
-      box-shadow: 0 0 8px #3f9ae4;
-      background-color: #2f3842;
+      border-color: #3f9ae4;
+      box-shadow: 0 0 0 3px rgba(63, 154, 228, 0.2);
+      background: rgba(255, 255, 255, 0.08);
     }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
     .btn-primary {
-      margin-left: -10px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 105%;
-      padding: 10px;
+      width: 100%;
+      padding: 14px;
       border: none;
-      border-radius: 8px;
-      background-color: #3f9ae4;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3f9ae4 0%, #2b6cb0 100%);
       color: white;
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: 0.3s;
+      transition: all 0.3s ease;
+      margin-bottom: 1rem;
     }
-    .btn-primary:hover {
-      background-color: #3180c4;
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #2b6cb0 0%, #3f9ae4 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(63, 154, 228, 0.3);
     }
-    a {
+
+    .btn-primary:disabled {
+      background: rgba(63, 154, 228, 0.5);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .links {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .link {
       color: #3f9ae4;
       text-decoration: none;
+      transition: color 0.3s ease;
+      font-weight: 500;
     }
-    a:hover {
+
+    .link:hover {
+      color: #63b3ed;
       text-decoration: underline;
     }
+
     .message {
       margin-top: 1rem;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255, 85, 85, 0.1);
+      border: 1px solid rgba(255, 85, 85, 0.3);
       color: #ff5555;
+      font-weight: 500;
+    }
+
+    .message.success {
+      background: rgba(72, 187, 120, 0.1);
+      border: 1px solid rgba(72, 187, 120, 0.3);
+      color: #48bb78;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .password-container {
+      position: relative;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 480px) {
+      .auth-card {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .auth-logo {
+        width: 80px;
+        height: 80px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="auth-container">
     <div class="auth-card">
-      <img src="../static/img/logo.png" alt="ElleTech Logo" class="auth-logo" style="width: 95px; height: 95px;">
+      <img src="/static/img/logo.png" alt="ElleTech Logo" class="auth-logo">
 
       <h2>Login to ElleTech</h2>
 
-      <form action="/login" method="POST">
-        <input type="text" name="username" class="form-control" placeholder="Username or Email" required>
-        <input type="password" name="password" class="form-control" placeholder="Password" required>
-        <button class="btn-primary">Login</button>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="message {% if category == 'success' %}success{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form id="loginForm" action="/login" method="POST">
+        <div class="form-group">
+          <label for="username" class="form-label">Username or Email</label>
+          <input type="text" id="username" name="username" class="form-control" 
+                 placeholder="Enter your username or email" required
+                 autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <div class="password-container">
+            <input type="password" id="password" name="password" class="form-control" 
+                   placeholder="Enter your password" required
+                   autocomplete="current-password" minlength="6">
+            <button type="button" class="password-toggle" id="togglePassword">
+              👁️
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="loginBtn">
+          Login
+        </button>
       </form>
 
-      <p class="mt-3">Don't have an account? <a href="/register">Register here</a></p>
-      <p class="mt-2"><a href="/forgot_password">Forgot Password?</a></p>
-
-      {% if message %}
-      <p class="message">{{ message }}</p>
-      {% endif %}
+      <div class="links">
+        <a href="/register" class="link">Don't have an account? Register here</a>
+        <a href="/forgot_password" class="link">Forgot Password?</a>
+      </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginForm = document.getElementById('loginForm');
+      const loginBtn = document.getElementById('loginBtn');
+      const togglePassword = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('password');
+
+      // Password toggle functionality
+      togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.textContent = type === 'password' ? '👁️' : '🔒';
+      });
+
+      // Form validation
+      loginForm.addEventListener('submit', function(e) {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!username) {
+          e.preventDefault();
+          showMessage('Please enter your username or email', 'error');
+          return;
+        }
+
+        if (password.length < 6) {
+          e.preventDefault();
+          showMessage('Password must be at least 6 characters long', 'error');
+          return;
+        }
+
+        // Show loading state
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<span class="loading-spinner"></span>Logging in...';
+      });
+
+      function showMessage(text, type = 'error') {
+        // Remove existing message
+        const existingMessage = document.querySelector('.message');
+        if (existingMessage) {
+          existingMessage.remove();
+        }
+
+        // Create new message
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type === 'success' ? 'success' : ''}`;
+        messageDiv.textContent = text;
+
+        // Insert after h2
+        const h2 = document.querySelector('h2');
+        h2.parentNode.insertBefore(messageDiv, h2.nextSibling);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          if (messageDiv.parentNode) {
+            messageDiv.remove();
+          }
+        }, 5000);
+      }
+
+      // Auto-focus on username field
+      document.getElementById('username').focus();
+    });
+  </script>
 </body>
 </html>

@@ -4,7 +4,31 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import random
-from db import execute, query_one
+import json
+
+# JSON file for storing OTPs
+OTP_JSON_FILE = 'otp_storage.json'
+
+def load_otp_data():
+    """Load OTP data from JSON file"""
+    try:
+        if os.path.exists(OTP_JSON_FILE):
+            with open(OTP_JSON_FILE, 'r') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"Error loading OTP data: {e}")
+        return {}
+
+def save_otp_data(data):
+    """Save OTP data to JSON file"""
+    try:
+        with open(OTP_JSON_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving OTP data: {e}")
+        return False
 
 def generate_otp(length=8):
     """Generate a numeric OTP of specified length"""
@@ -80,42 +104,71 @@ def send_otp_email(recipient_email, otp_code, subject="ElleTech - OTP Verificati
         return False
 
 def store_otp(user_id, otp_code, otp_type='general', meta_info=''):
-    """Store OTP in database with expiration"""
+    """Store OTP in JSON file with expiration"""
     try:
-        expires_at = datetime.now() + timedelta(minutes=5)
+        expires_at = (datetime.now() + timedelta(minutes=5)).isoformat()
         
-        # Delete any existing OTPs for this user and type
-        execute("DELETE FROM otp WHERE user_id=%s AND otp_type=%s", 
-                (user_id, otp_type))
+        # Load existing data
+        otp_data = load_otp_data()
+        
+        # Remove any existing OTPs for this user and type
+        user_key = str(user_id)
+        if user_key in otp_data:
+            otp_data[user_key] = [otp for otp in otp_data[user_key] if otp.get('otp_type') != otp_type]
+        else:
+            otp_data[user_key] = []
         
         # Store new OTP
-        execute("""
-            INSERT INTO otp (user_id, otp_code, otp_type, meta_info, expires_at, created_at) 
-            VALUES (%s, %s, %s, %s, %s, NOW())
-        """, (user_id, otp_code, otp_type, meta_info, expires_at))
+        otp_record = {
+            'otp_code': otp_code,
+            'otp_type': otp_type,
+            'meta_info': meta_info,
+            'expires_at': expires_at,
+            'created_at': datetime.now().isoformat()
+        }
         
-        print(f"OTP stored for user {user_id}, type: {otp_type}")
-        return True
+        otp_data[user_key].append(otp_record)
+        
+        # Save back to JSON file
+        if save_otp_data(otp_data):
+            print(f"OTP stored for user {user_id}, type: {otp_type}")
+            return True
+        else:
+            print("Failed to save OTP data")
+            return False
+            
     except Exception as e:
         print(f"Error storing OTP: {e}")
         return False
 
 def verify_otp(user_id, otp_code, otp_type='general'):
-    """Verify OTP from database"""
+    """Verify OTP from JSON file"""
     try:
-        otp_record = query_one("""
-            SELECT * FROM otp 
-            WHERE user_id=%s AND otp_code=%s AND otp_type=%s AND expires_at > NOW()
-        """, (user_id, otp_code, otp_type))
+        otp_data = load_otp_data()
+        user_key = str(user_id)
         
-        if otp_record:
-            # Delete the used OTP
-            execute("DELETE FROM otp WHERE id=%s", (otp_record['id'],))
-            print(f"OTP verified successfully for user {user_id}")
-            return True
+        if user_key not in otp_data:
+            print(f"No OTP found for user {user_id}")
+            return False
+        
+        current_time = datetime.now()
+        
+        # Find matching OTP
+        for otp_record in otp_data[user_key][:]:
+            if (otp_record.get('otp_code') == otp_code and 
+                otp_record.get('otp_type') == otp_type and
+                datetime.fromisoformat(otp_record['expires_at']) > current_time):
+                
+                # Remove the used OTP
+                otp_data[user_key].remove(otp_record)
+                save_otp_data(otp_data)
+                
+                print(f"OTP verified successfully for user {user_id}")
+                return True
         
         print(f"OTP verification failed for user {user_id}")
         return False
+        
     except Exception as e:
         print(f"Error verifying OTP: {e}")
         return False
@@ -138,3 +191,31 @@ def send_and_store_otp(user_id, email, otp_type='general', meta_info=''):
     except Exception as e:
         print(f"Error in send_and_store_otp: {e}")
         return None
+
+def cleanup_expired_otps():
+    """Clean up expired OTPs from JSON file"""
+    try:
+        otp_data = load_otp_data()
+        current_time = datetime.now()
+        cleaned_count = 0
+        
+        for user_key in list(otp_data.keys()):
+            original_count = len(otp_data[user_key])
+            otp_data[user_key] = [
+                otp for otp in otp_data[user_key] 
+                if datetime.fromisoformat(otp['expires_at']) > current_time
+            ]
+            cleaned_count += (original_count - len(otp_data[user_key]))
+            
+            # Remove user entry if no OTPs left
+            if not otp_data[user_key]:
+                del otp_data[user_key]
+        
+        if cleaned_count > 0:
+            save_otp_data(otp_data)
+            print(f"Cleaned up {cleaned_count} expired OTPs")
+        
+        return cleaned_count
+    except Exception as e:
+        print(f"Error cleaning up expired OTPs: {e}")
+        return 0

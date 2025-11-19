@@ -2,6 +2,14 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='style_admin.css') }}">
+<style>
+.stats-card {
+    transition: transform 0.3s ease;
+}
+.stats-card:hover {
+    transform: translateY(-5px);
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -11,7 +19,7 @@
   <!-- Stats Cards -->
   <div class="row mb-4">
     <div class="col-md-4 mb-3">
-      <div class="card bg-primary text-white shadow">
+      <div class="card bg-primary text-white shadow stats-card">
         <div class="card-body text-center">
           <h5 class="card-title">Total Products</h5>
           <h2 class="card-text">{{ total_products }}</h2>
@@ -19,7 +27,7 @@
       </div>
     </div>
     <div class="col-md-4 mb-3">
-      <div class="card bg-success text-white shadow">
+      <div class="card bg-success text-white shadow stats-card">
         <div class="card-body text-center">
           <h5 class="card-title">Total Orders</h5>
           <h2 class="card-text">{{ total_orders }}</h2>
@@ -27,7 +35,7 @@
       </div>
     </div>
     <div class="col-md-4 mb-3">
-      <div class="card bg-warning text-dark shadow">
+      <div class="card bg-warning text-dark shadow stats-card">
         <div class="card-body text-center">
           <h5 class="card-title">Total Users</h5>
           <h2 class="card-text">{{ total_users }}</h2>
@@ -51,6 +59,7 @@
                   <th>Product ID</th>
                   <th>Product Name</th>
                   <th>Stock Quantity</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -58,15 +67,20 @@
                 <tr>
                   <td>{{ product.id }}</td>
                   <td>{{ product.name }}</td>
+                  <td>{{ product.stock_qty }}</td>
                   <td>
                     {% if product.stock_qty <= 5 %}
-                      <span class="badge bg-danger">{{ product.stock_qty }}</span>
+                      <span class="badge bg-danger">Low Stock</span>
                     {% elif product.stock_qty <= 10 %}
-                      <span class="badge bg-warning text-dark">{{ product.stock_qty }}</span>
+                      <span class="badge bg-warning text-dark">Medium Stock</span>
                     {% else %}
-                      <span class="badge bg-success">{{ product.stock_qty }}</span>
+                      <span class="badge bg-success">In Stock</span>
                     {% endif %}
                   </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="text-center">No products found</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -79,8 +93,8 @@
 
   <!-- Quick Actions -->
   <div class="row">
-    <div class="col-md-6 mb-3">
-      <div class="card bg-dark text-light shadow">
+    <div class="col-md-4 mb-3">
+      <div class="card bg-dark text-light shadow stats-card">
         <div class="card-body text-center">
           <h5 class="card-title">Manage Products</h5>
           <p class="card-text">Add, edit, or delete products in the inventory.</p>
@@ -88,12 +102,21 @@
         </div>
       </div>
     </div>
-    <div class="col-md-6 mb-3">
-      <div class="card bg-dark text-light shadow">
+    <div class="col-md-4 mb-3">
+      <div class="card bg-dark text-light shadow stats-card">
         <div class="card-body text-center">
           <h5 class="card-title">Manage Orders</h5>
           <p class="card-text">View and update order statuses.</p>
           <a href="{{ url_for('admin_orders') }}" class="btn btn-success">Go to Orders</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card bg-dark text-light shadow stats-card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Browse Shop</h5>
+          <p class="card-text">View products as customers see them.</p>
+          <a href="{{ url_for('admin_shop') }}" class="btn btn-info">Go to Shop</a>
         </div>
       </div>
     </div>

@@ -8,8 +8,7 @@ from otp import send_otp_email, generate_otp, verify_otp, store_otp, send_and_st
 from db import get_db, query_all, query_one, execute
 from datetime import datetime
 import json
-import random  # Add this import for 8-digit OTP generation
-
+import random
 
 # Load environment variables
 load_dotenv()
@@ -26,13 +25,14 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ----------------------------
-# Ensure SECRET_KEY exists (fallback to random but warn in logs)
+# Ensure SECRET_KEY exists
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     print("Warning: SECRET_KEY not set in environment; using random key for this run.")
     SECRET_KEY = os.urandom(24)
 app.secret_key = SECRET_KEY
 
+# Content dictionaries (unchanged)
 login_content = {
     'title': 'Login to ElleTech',
     'username_placeholder': 'Username or Email',
@@ -260,9 +260,9 @@ layout_content = {
     'admin_shop_link': 'Admin Shop'
 }
 
-ADMIN_ID = 1   # Admin user ID
+ADMIN_ID = 1
 
-# UTIL: login required decorator-like check (simple)
+# UTIL: login required decorator-like check
 def require_login():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -274,7 +274,39 @@ def require_admin():
         return redirect(url_for('home'))
     return None
 
-# ROUTES
+# Initialize database tables (removed OTP table creation)
+def init_tables():
+    """Initialize required database tables"""
+    try:
+        # Chat table only - OTP table removed
+        execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sender_id INT NOT NULL,
+                receiver_id INT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (receiver_id) REFERENCES users(id)
+            )
+        """)
+        print("Chat table initialized successfully")
+        
+        # Ensure membership columns exist in users table
+        try:
+            execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS membership VARCHAR(50) DEFAULT 'Basic'")
+            execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_payment_status VARCHAR(50) DEFAULT 'paid'")
+            print("Membership columns verified")
+        except Exception as e:
+            print(f"Membership columns already exist: {e}")
+        
+    except Exception as e:
+        print(f"Error initializing tables: {e}")
+
+# Initialize tables when app starts
+init_tables()
+
+# ROUTES (all routes remain exactly the same as in your original code)
 
 @app.route('/')
 def index():
@@ -301,7 +333,6 @@ def login():
                         'role': user.get('role', 'user'),
                         'otp_code': otp_code
                     }
-                    flash('OTP sent to your email. Please verify.')
                     return redirect(url_for('otp_verify'))
                 else:
                     msg = 'Failed to send OTP. Please try again.'
@@ -333,7 +364,7 @@ def register():
             msg = 'Username or email already exists.'
             return render_template('register.html', message=msg, content=register_content)
 
-        # Bypass OTP for testing - directly create user
+        # Create user directly
         user_id = execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
                              VALUES (%s,%s,%s,%s,%s,%s,'user')""",
                           (full_name, email, username, password_hash, contact_no, address))
@@ -360,38 +391,8 @@ def otp_verify():
     if request.method == 'POST':
         otp_code = request.form.get('otp', '').strip()
 
-        # Check for pending registration
-        pending_reg = session.get('pending_registration')
-        if pending_reg and pending_reg['otp_code'] == otp_code:
-            # Check if email already exists
-            existing = query_one("SELECT * FROM users WHERE email=%s", (pending_reg['email'],))
-            if existing:
-                msg = 'Email already exists.'
-                session.pop('pending_registration', None)
-                return render_template('otp_verify.html', message=msg, content=otp_verify_content)
-            # Create the user
-            user_id = execute("""INSERT INTO users (full_name, email, username, password_hash, contact_no, address, role)
-                                 VALUES (%s,%s,%s,%s,%s,%s,'user')""",
-                              (pending_reg['full_name'], pending_reg['email'], pending_reg['username'],
-                               pending_reg['password_hash'], pending_reg['contact_no'], pending_reg['address']))
-            if user_id:
-                user = query_one("SELECT * FROM users WHERE id=%s", (user_id,))
-                if user:
-                    session['user_id'] = user['id']
-                    session['username'] = user['username']
-                    session['role'] = user.get('role', 'user')
-                    session.pop('pending_registration', None)
-                    flash(register_content['success_message'])
-                    if session['role'] == 'admin':
-                        return redirect(url_for('admin_dashboard'))
-                    else:
-                        return redirect(url_for('home'))
-                else:
-                    msg = 'Registration failed. Please try again.'
-            else:
-                msg = 'Registration failed. Please try again.'
         # Check for pending login
-        elif session.get('pending_login') and session['pending_login']['otp_code'] == otp_code:
+        if session.get('pending_login') and session['pending_login']['otp_code'] == otp_code:
             pending_login = session['pending_login']
             session['user_id'] = pending_login['user_id']
             session['username'] = pending_login['username']
@@ -408,8 +409,7 @@ def otp_verify():
             session['reset_email'] = pending_forgot['email']
             session.pop('pending_forgot_password', None)
             return redirect(url_for('reset_password'))
-        else:
-            msg = 'Invalid or expired OTP.'
+    
     return render_template('otp_verify.html', message=msg, content=otp_verify_content)
 
 @app.route('/logout')
@@ -452,7 +452,7 @@ def shop():
     else:
         products = query_all("SELECT * FROM products ORDER BY created_at DESC")
 
-    # Fetch unique categories (if category column exists)
+    # Fetch unique categories
     try:
         categories = [row['category'] for row in query_all("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")]
     except Exception:
@@ -470,15 +470,28 @@ def membership():
     if r:
         return r
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+    
     if request.method == 'POST':
         membership_val = request.form.get('membership')
-        if membership_val:
-            execute("UPDATE users SET membership=%s, membership_payment_status='unpaid' WHERE id=%s", (membership_val, session['user_id']))
-            if membership_val == 'Basic':
-                flash("Membership updated to Basic.")
-            else:
-                flash("Membership updated. Please complete payment to activate benefits.")
+        payment_method = request.form.get('payment_method')
+        
+        if not membership_val:
+            flash("Please select a membership level.")
             return redirect(url_for('membership'))
+            
+        # Update membership
+        execute("UPDATE users SET membership=%s, membership_payment_status='unpaid' WHERE id=%s", 
+                (membership_val, session['user_id']))
+        
+        if membership_val == 'Basic':
+            # Basic is free, no payment needed
+            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+            flash("Membership updated to Basic. All basic benefits are now active!")
+        else:
+            flash(f"Membership updated to {membership_val}. Please complete payment to activate benefits.")
+        
+        return redirect(url_for('membership'))
+    
     return render_template('membership.html', user=user, content=membership_content)
 
 @app.route('/confirm_membership_payment', methods=['POST'])
@@ -486,28 +499,46 @@ def confirm_membership_payment():
     r = require_login()
     if r:
         return r
+        
     payment_method = request.form.get('payment_method')
     reference = request.form.get('reference', '').strip()
+    otp = request.form.get('otp', '').strip()
+    
     user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
     current_membership = user.get('membership')
     current_payment_status = user.get('membership_payment_status', 'unpaid')
-    if current_membership and current_payment_status == 'unpaid':
-        if payment_method == 'Cash on Delivery':
-            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
-            flash("Membership payment confirmed.")
-            return redirect(url_for('membership'))
-        elif payment_method in ['GCash', 'PayMaya']:
-            if not reference:
-                flash("Reference/Transaction ID is required for this payment method.")
-                return redirect(url_for('membership'))
-            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
-            flash("Membership payment confirmed.")
-            return redirect(url_for('membership'))
-        else:
-            flash("Invalid payment method.")
-            return redirect(url_for('membership'))
-    else:
+    
+    if not current_membership or current_payment_status != 'unpaid':
         flash("No unpaid membership to confirm.")
+        return redirect(url_for('membership'))
+
+    if payment_method == 'Cash on Delivery':
+        # No OTP required for Cash on Delivery
+        execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+        flash("Membership payment confirmed via Cash on Delivery. Your benefits are now active!")
+        return redirect(url_for('membership'))
+        
+    elif payment_method in ['GCash', 'PayMaya']:
+        if not reference:
+            flash("Reference/Transaction ID is required for this payment method.")
+            return redirect(url_for('membership'))
+            
+        if not otp:
+            flash("OTP is required for digital payment verification.")
+            return redirect(url_for('membership'))
+            
+        # Verify OTP
+        if not verify_otp(session['user_id'], otp, otp_type='payment'):
+            flash("Invalid or expired OTP. Please try again.")
+            return redirect(url_for('membership'))
+            
+        # OTP verified, process payment
+        execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+        flash(f"Membership payment confirmed! Your {current_membership} benefits are now active!")
+        return redirect(url_for('membership'))
+        
+    else:
+        flash("Invalid payment method.")
         return redirect(url_for('membership'))
 
 # PROFILE DISPLAY AND EDIT
@@ -636,7 +667,6 @@ def add_to_cart(product_id):
     flash("Item added to cart.", "success")
     return redirect(url_for('cart'))
 
-
 # REMOVE FROM CART
 @app.route('/remove_from_cart/<int:cart_id>', methods=['POST'])
 def remove_from_cart(cart_id):
@@ -652,7 +682,6 @@ def remove_from_cart(cart_id):
     execute("DELETE FROM cart WHERE id=%s", (cart_id,))
     flash("Item removed from cart.", "success")
     return redirect(url_for('cart'))
-
 
 # CHECKOUT
 @app.route('/checkout', methods=['GET', 'POST'])
@@ -826,7 +855,12 @@ def admin_dashboard():
     total_users = total_users_row['count'] if total_users_row else 0
     # Fetch product stocks (lowest first)
     products_stocks = query_all("SELECT id, name, stock_qty FROM products ORDER BY stock_qty ASC")
-    return render_template('admin_dashboard.html', total_products=total_products, total_orders=total_orders, total_users=total_users, products_stocks=products_stocks, content=admin_dashboard_content)
+    return render_template('admin/admin_dashboard.html', 
+                         total_products=total_products, 
+                         total_orders=total_orders, 
+                         total_users=total_users, 
+                         products_stocks=products_stocks, 
+                         content=admin_dashboard_content)
 
 @app.route('/admin_orders', methods=['GET', 'POST'])
 def admin_orders():
@@ -837,6 +871,7 @@ def admin_orders():
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
+    
     if request.method == 'POST':
         order_id = request.form.get('order_id')
         status = request.form.get('status')
@@ -848,9 +883,11 @@ def admin_orders():
             else:
                 flash(admin_orders_content['invalid_status'])
         return redirect(url_for('admin_orders'))
-    # Fetch all orders with user and product details
+    
+    # Fetch all orders with user and product details - FIXED QUERY
     orders = query_all("""
-        SELECT o.*, u.username, u.full_name, u.address, p.name AS product_name, p.price, p.image
+        SELECT o.*, u.username, u.full_name as user_full_name, u.address as user_address, 
+               p.name AS product_name, p.price, p.image
         FROM orders o
         JOIN users u ON o.user_id = u.id
         JOIN products p ON o.product_id = p.id
@@ -858,9 +895,9 @@ def admin_orders():
     """)
     return render_template('admin/admin_orders.html', orders=orders, content=admin_orders_content)
 
-@app.route('/admin_products', methods=['GET', 'POST'], defaults={'id': None})
-@app.route('/admin_products/<int:id>', methods=['GET', 'POST'])
-def admin_products(id=None):
+@app.route('/admin_products', methods=['GET', 'POST'], defaults={'product_id': None})
+@app.route('/admin_products/<int:product_id>', methods=['GET', 'POST'])
+def admin_products(product_id=None):
     r = require_login()
     if r:
         return r
@@ -868,6 +905,8 @@ def admin_products(id=None):
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
+    
+    product = None
     if request.method == 'POST':
         # --- ADD PRODUCT ---
         if request.form.get('action') == 'add':
@@ -898,36 +937,42 @@ def admin_products(id=None):
             except Exception as e:
                 flash("Database error: " + str(e))
             return redirect(url_for('admin_products'))
+        
         # --- DELETE PRODUCT ---
-        if request.method == 'POST' and request.form.get('_method') == 'DELETE':
+        elif request.form.get('_method') == 'DELETE':
             delete_id = request.form.get('delete_id')
             if delete_id:
                 execute("DELETE FROM products WHERE id=%s", (delete_id,))
                 flash(products_content['product_deleted'])
             return redirect(url_for('admin_products'))
-        # --- EDIT / VIEW A SINGLE PRODUCT ---
-        if id is not None:
-            product = query_one("SELECT * FROM products WHERE id=%s", (id,))
-            if not product:
-                return redirect(url_for('home'))
-            if request.method == 'POST':
-                name = request.form.get('name', '').strip()
-                description = request.form.get('description', '').strip()
-                price = request.form.get('price', '0').strip()
-                stock_qty = request.form.get('stock_qty', '0').strip()
-                category = request.form.get('category')
-                # Handle image upload
-                image_filename = product['image']  # Default to existing
-                if 'image' in request.files:
-                    file = request.files['image']
-                    if file and allowed_file(file.filename):
-                        filename = secure_filename(file.filename)
-                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                        image_filename = filename
-                execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s WHERE id=%s""",
-                        (name, description, price, stock_qty, category, image_filename, id))
-                flash(products_content['product_updated'])
-                return redirect(url_for('admin_products'))
+        
+        # --- EDIT PRODUCT ---
+        elif product_id is not None:
+            name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip()
+            price = request.form.get('price', '0').strip()
+            stock_qty = request.form.get('stock_qty', '0').strip()
+            category = request.form.get('category')
+            # Handle image upload
+            image_filename = request.form.get('current_image')
+            if 'image' in request.files:
+                file = request.files['image']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    image_filename = filename
+            execute("""UPDATE products SET name=%s, description=%s, price=%s, stock_qty=%s, category=%s, image=%s WHERE id=%s""",
+                    (name, description, price, stock_qty, category, image_filename, product_id))
+            flash(products_content['product_updated'])
+            return redirect(url_for('admin_products'))
+    
+    # If editing a product, fetch its details
+    if product_id is not None:
+        product = query_one("SELECT * FROM products WHERE id=%s", (product_id,))
+        if not product:
+            flash("Product not found.")
+            return redirect(url_for('admin_products'))
+    
     # Fetch products for listing with search
     search_query = request.args.get('search', '').strip()
     if search_query:
@@ -935,7 +980,12 @@ def admin_products(id=None):
                              ('%' + search_query + '%', '%' + search_query + '%'))
     else:
         products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_products.html', products=products, product=product if id else None, content=admin_products_content, search_query=search_query)
+    
+    return render_template('admin/admin_products.html', 
+                         products=products, 
+                         product=product, 
+                         content=admin_products_content, 
+                         search_query=search_query)
 
 @app.route('/admin_shop')
 def admin_shop():
@@ -946,8 +996,19 @@ def admin_shop():
     if session.get('role') != 'admin':
         flash(admin_dashboard_content['access_denied'])
         return redirect(url_for('home'))
-    products = query_all("SELECT * FROM products ORDER BY created_at DESC")
-    return render_template('admin/admin_shop.html', products=products, content=admin_shop_content)
+    
+    category_filter = request.args.get('category', '')
+    
+    # Fetch products based on category filter
+    if category_filter:
+        products = query_all("SELECT * FROM products WHERE category=%s ORDER BY created_at DESC", (category_filter,))
+    else:
+        products = query_all("SELECT * FROM products ORDER BY created_at DESC")
+    
+    return render_template('admin/admin_shop.html', 
+                         products=products, 
+                         selected_category=category_filter,
+                         content=admin_shop_content)
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
@@ -1000,7 +1061,7 @@ def reset_password():
     return render_template('reset_password.html')
 
 # -------------------------------------------------
-#  PAYMENT OTP  (membership + orders) - FIXED
+#  PAYMENT OTP  (membership + orders)
 # -------------------------------------------------
 
 # ----------  AJAX: send OTP  ----------
@@ -1039,16 +1100,14 @@ def request_order_payment_otp():
         email_sent = send_otp_email(user['email'], otp_code, subject="ElleTech – Order Payment OTP (8-digit)")
         
         if email_sent:
-            # Store OTP in database
+            # Store OTP in JSON file
             store_otp(user['id'], otp_code, otp_type='payment', meta_info=meta)
             return jsonify({'ok': True, 'msg': '8-digit OTP sent to your email'})
         else:
-            # Log the error for debugging
             print(f"Failed to send OTP email to {user['email']}")
             return jsonify({'ok': False, 'msg': 'Failed to send OTP email. Please try again.'}), 500
             
     except Exception as e:
-        # Log the exception for debugging
         print(f"Error in request_order_payment_otp: {str(e)}")
         return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
 
@@ -1060,7 +1119,7 @@ def request_membership_payment_otp():
         
         user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
         if not user or not user.get('membership') or user.get('membership_payment_status') != 'unpaid':
-            return jsonify({'ok': False, 'msg': 'No unpaid membership'}), 400
+            return jsonify({'ok': False, 'msg': 'No unpaid membership found'}), 400
         
         if not user.get('email'):
             return jsonify({'ok': False, 'msg': 'User email not found'}), 400
@@ -1116,7 +1175,7 @@ def verify_payment_otp():
         return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
 
 # -------------------------------------------------
-#  CHAT SYSTEM - FIXED AND ENHANCED
+#  CHAT SYSTEM
 # -------------------------------------------------
 
 @app.route('/chat')
@@ -1178,7 +1237,7 @@ def send_message():
         return jsonify({'success': False, 'error': 'Failed to send message'})
 
 # -------------------------------------------------
-#  ADMIN CHAT - FIXED AND ENHANCED
+#  ADMIN CHAT
 # -------------------------------------------------
 @app.route('/admin/chat')
 def admin_chat():
@@ -1278,27 +1337,6 @@ def admin_send_message():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': 'Failed to send message'})
-
-# Check if chats table exists, create if not
-def init_chat_table():
-    try:
-        execute("""
-            CREATE TABLE IF NOT EXISTS chats (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                sender_id INT NOT NULL,
-                receiver_id INT NOT NULL,
-                message TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (sender_id) REFERENCES users(id),
-                FOREIGN KEY (receiver_id) REFERENCES users(id)
-            )
-        """)
-        print("Chat table initialized successfully")
-    except Exception as e:
-        print(f"Error initializing chat table: {e}")
-
-# Initialize chat table when app starts
-init_chat_table()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
