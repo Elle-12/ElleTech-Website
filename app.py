@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from otp import send_otp_email, generate_otp, verify_otp, store_otp, send_and_store_otp
 from db import get_db, query_all, query_one, execute
+from datetime import datetime
+import json
+import random  # Add this import for 8-digit OTP generation
+
 
 # Load environment variables
 load_dotenv()
@@ -255,6 +259,8 @@ layout_content = {
     'admin_orders_link': 'Manage Orders',
     'admin_shop_link': 'Admin Shop'
 }
+
+ADMIN_ID = 1   # Admin user ID
 
 # UTIL: login required decorator-like check (simple)
 def require_login():
@@ -992,6 +998,307 @@ def reset_password():
             msg = "Database error. Try again later."
             return render_template('reset_password.html', message=msg)
     return render_template('reset_password.html')
+
+# -------------------------------------------------
+#  PAYMENT OTP  (membership + orders) - FIXED
+# -------------------------------------------------
+
+# ----------  AJAX: send OTP  ----------
+@app.route('/request_order_payment_otp', methods=['POST'])
+def request_order_payment_otp():
+    try:
+        if 'user_id' not in session: 
+            return jsonify({'ok': False, 'msg': 'Login required'}), 403
+        
+        data = request.get_json(silent=True) or {}
+        order_ids = data.get('order_ids', [])
+        
+        if not order_ids: 
+            return jsonify({'ok': False, 'msg': 'No orders selected'}), 400
+        
+        # Verify orders belong to user and are unpaid
+        placeholders = ','.join(['%s'] * len(order_ids))
+        query = f"SELECT id FROM orders WHERE id IN ({placeholders}) AND user_id=%s AND payment_status='unpaid'"
+        rows = query_all(query, (*order_ids, session['user_id']))
+        
+        if not rows: 
+            return jsonify({'ok': False, 'msg': 'No eligible orders found'}), 400
+        
+        valid_order_ids = [r['id'] for r in rows]
+        user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+        
+        if not user or not user.get('email'):
+            return jsonify({'ok': False, 'msg': 'User email not found'}), 400
+        
+        # Generate 8-digit OTP
+        otp_code = str(random.randint(10000000, 99999999))  # 8-digit OTP
+        
+        meta = 'order-' + ','.join(map(str, valid_order_ids))
+        
+        # Try to send OTP email
+        email_sent = send_otp_email(user['email'], otp_code, subject="ElleTech – Order Payment OTP (8-digit)")
+        
+        if email_sent:
+            # Store OTP in database
+            store_otp(user['id'], otp_code, otp_type='payment', meta_info=meta)
+            return jsonify({'ok': True, 'msg': '8-digit OTP sent to your email'})
+        else:
+            # Log the error for debugging
+            print(f"Failed to send OTP email to {user['email']}")
+            return jsonify({'ok': False, 'msg': 'Failed to send OTP email. Please try again.'}), 500
+            
+    except Exception as e:
+        # Log the exception for debugging
+        print(f"Error in request_order_payment_otp: {str(e)}")
+        return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
+
+@app.route('/request_membership_payment_otp', methods=['POST'])
+def request_membership_payment_otp():
+    try:
+        if 'user_id' not in session: 
+            return jsonify({'ok': False, 'msg': 'Login required'}), 403
+        
+        user = query_one("SELECT * FROM users WHERE id=%s", (session['user_id'],))
+        if not user or not user.get('membership') or user.get('membership_payment_status') != 'unpaid':
+            return jsonify({'ok': False, 'msg': 'No unpaid membership'}), 400
+        
+        if not user.get('email'):
+            return jsonify({'ok': False, 'msg': 'User email not found'}), 400
+        
+        # Generate 8-digit OTP
+        otp_code = str(random.randint(10000000, 99999999))  # 8-digit OTP
+        
+        # Try to send OTP email
+        email_sent = send_otp_email(user['email'], otp_code, subject="ElleTech – Membership Payment OTP (8-digit)")
+        
+        if email_sent:
+            store_otp(user['id'], otp_code, otp_type='payment', meta_info='membership')
+            return jsonify({'ok': True, 'msg': '8-digit OTP sent to your email'})
+        else:
+            print(f"Failed to send OTP email to {user['email']}")
+            return jsonify({'ok': False, 'msg': 'Failed to send OTP email. Please try again.'}), 500
+    except Exception as e:
+        print(f"Error in request_membership_payment_otp: {str(e)}")
+        return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
+
+# ----------  AJAX: verify OTP  ----------
+@app.route('/verify_payment_otp', methods=['POST'])
+def verify_payment_otp():
+    try:
+        if 'user_id' not in session: 
+            return jsonify({'ok': False, 'msg': 'Login required'}), 403
+        
+        data = request.get_json(silent=True) or {}
+        otp = data.get('otp','').strip()
+        purpose = data.get('purpose')
+        order_ids = data.get('order_ids',[])
+
+        # Validate 8-digit OTP format
+        if not otp or len(otp) != 8 or not otp.isdigit():
+            return jsonify({'ok': False, 'msg': 'Please enter a valid 8-digit OTP code'}), 400
+
+        if not verify_otp(session['user_id'], otp, otp_type='payment'):
+            return jsonify({'ok': False, 'msg': 'Invalid or expired OTP'}), 400
+
+        if purpose == 'membership':
+            execute("UPDATE users SET membership_payment_status='paid' WHERE id=%s", (session['user_id'],))
+            return jsonify({'ok': True, 'msg': 'Membership payment confirmed!','redirect':url_for('membership')})
+
+        if purpose == 'order' and order_ids:
+            placeholders = ','.join(['%s'] * len(order_ids))
+            execute(f"UPDATE orders SET payment_status='paid' WHERE id IN ({placeholders}) AND user_id=%s",
+                    (*order_ids, session['user_id']))
+            return jsonify({'ok': True, 'msg': 'Payment confirmed for selected orders!','redirect':url_for('orders')})
+
+        return jsonify({'ok': False, 'msg': 'Unknown purpose'}), 400
+    except Exception as e:
+        print(f"Error in verify_payment_otp: {str(e)}")
+        return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
+
+# -------------------------------------------------
+#  CHAT SYSTEM - FIXED AND ENHANCED
+# -------------------------------------------------
+
+@app.route('/chat')
+def chat():
+    """User-side chat page."""
+    r = require_login()
+    if r:
+        return r
+    return render_template('chat.html')
+
+@app.route('/get_messages')
+def get_messages():
+    """Return JSON of all messages between logged-in user and admin."""
+    r = require_login()
+    if r:
+        return jsonify({'messages': []}), 403
+    
+    rows = query_all("""
+        SELECT c.*, u.username AS sender_username
+        FROM chats c
+        JOIN users u ON c.sender_id = u.id
+        WHERE (c.sender_id=%s AND c.receiver_id=%s)
+           OR (c.sender_id=%s AND c.receiver_id=%s)
+        ORDER BY c.created_at ASC
+    """, (session['user_id'], ADMIN_ID, ADMIN_ID, session['user_id']))
+    
+    # Format messages for frontend
+    messages = []
+    for row in rows:
+        messages.append({
+            'id': row['id'],
+            'sender_id': row['sender_id'],
+            'sender_username': row['sender_username'],
+            'message': row['message'],
+            'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+            'is_own': row['sender_id'] == session['user_id']
+        })
+    
+    return jsonify({'messages': messages})
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    """User sends a message to admin."""
+    r = require_login()
+    if r:
+        return jsonify({'success': False, 'error': 'Login required'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    msg = data.get('message', '').strip()
+    
+    if not msg:
+        return jsonify({'success': False, 'error': 'Message cannot be empty'})
+    
+    try:
+        execute("INSERT INTO chats(sender_id, receiver_id, message, created_at) VALUES (%s, %s, %s, %s)",
+                (session['user_id'], ADMIN_ID, msg, datetime.now()))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Failed to send message'})
+
+# -------------------------------------------------
+#  ADMIN CHAT - FIXED AND ENHANCED
+# -------------------------------------------------
+@app.route('/admin/chat')
+def admin_chat():
+    r = require_admin()
+    if r:
+        return r
+    return render_template('admin_chat.html')
+
+@app.route('/admin_get_users')
+def admin_get_users():
+    """Return list of users who ever chatted (last message per user)."""
+    r = require_admin()
+    if r:
+        return jsonify({'users': []}), 403
+    
+    rows = query_all("""
+        SELECT DISTINCT u.id, u.username, u.full_name,
+               (SELECT message FROM chats 
+                WHERE (sender_id=u.id AND receiver_id=%s) 
+                   OR (sender_id=%s AND receiver_id=u.id) 
+                ORDER BY created_at DESC LIMIT 1) as last_message,
+               (SELECT created_at FROM chats 
+                WHERE (sender_id=u.id AND receiver_id=%s) 
+                   OR (sender_id=%s AND receiver_id=u.id) 
+                ORDER BY created_at DESC LIMIT 1) as last_message_time
+        FROM users u
+        WHERE u.id IN (
+            SELECT DISTINCT sender_id FROM chats WHERE receiver_id=%s
+            UNION
+            SELECT DISTINCT receiver_id FROM chats WHERE sender_id=%s
+        ) AND u.id != %s
+        ORDER BY last_message_time DESC
+    """, (ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID))
+    
+    users = []
+    for row in rows:
+        users.append({
+            'id': row['id'],
+            'username': row['username'],
+            'full_name': row['full_name'],
+            'last_message': row['last_message'] or 'No messages yet',
+            'last_message_time': row['last_message_time'].strftime('%Y-%m-%d %H:%M') if row['last_message_time'] else 'Never'
+        })
+    
+    return jsonify({'users': users})
+
+@app.route('/admin_get_messages')
+def admin_get_messages():
+    """Messages between admin and selected user."""
+    r = require_admin()
+    if r:
+        return jsonify({'messages': []}), 403
+    
+    user_id = request.args.get('user_id', type=int)
+    if not user_id:
+        return jsonify({'messages': []})
+    
+    rows = query_all("""
+        SELECT c.*, u.username AS sender_username
+        FROM chats c
+        JOIN users u ON c.sender_id = u.id
+        WHERE (c.sender_id=%s AND c.receiver_id=%s)
+           OR (c.sender_id=%s AND c.receiver_id=%s)
+        ORDER BY c.created_at ASC
+    """, (user_id, ADMIN_ID, ADMIN_ID, user_id))
+    
+    messages = []
+    for row in rows:
+        messages.append({
+            'id': row['id'],
+            'sender_id': row['sender_id'],
+            'sender_username': row['sender_username'],
+            'message': row['message'],
+            'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+            'is_own': row['sender_id'] == ADMIN_ID
+        })
+    
+    return jsonify({'messages': messages})
+
+@app.route('/admin_send_message', methods=['POST'])
+def admin_send_message():
+    """Admin replies to a user."""
+    r = require_admin()
+    if r:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    msg = data.get('message', '').strip()
+    receiver_id = data.get('receiver_id', type=int)
+    
+    if not msg or not receiver_id:
+        return jsonify({'success': False, 'error': 'Message and receiver ID required'})
+    
+    try:
+        execute("INSERT INTO chats(sender_id, receiver_id, message, created_at) VALUES (%s, %s, %s, %s)",
+                (ADMIN_ID, receiver_id, msg, datetime.now()))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Failed to send message'})
+
+# Check if chats table exists, create if not
+def init_chat_table():
+    try:
+        execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sender_id INT NOT NULL,
+                receiver_id INT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (receiver_id) REFERENCES users(id)
+            )
+        """)
+        print("Chat table initialized successfully")
+    except Exception as e:
+        print(f"Error initializing chat table: {e}")
+
+# Initialize chat table when app starts
+init_chat_table()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

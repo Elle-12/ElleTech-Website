@@ -295,6 +295,11 @@
             </a>
           </li>
           <li class="nav-item me-2">
+            <a href="{{ url_for('chat')}}" class="nav-link px-3 py-2 {% if request.endpoint == 'chat' %}active{% endif %}">
+              <i class="fas fa-message me-1"></i>chat
+            </a>
+          </li>
+          <li class="nav-item me-2">
             <a href="{{ url_for('membership') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'membership' %}active{% endif %}">
               <i class="fas fa-crown me-1"></i>Membership
             </a>
