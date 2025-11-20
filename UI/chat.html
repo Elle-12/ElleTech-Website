@@ -22,6 +22,10 @@
     color: white;
     font-weight: 600;
     font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 .chat-messages {
@@ -39,6 +43,7 @@
     border-radius: 20px;
     position: relative;
     word-wrap: break-word;
+    line-height: 1.4;
 }
 
 .message.user {
@@ -54,6 +59,13 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
     border-bottom-left-radius: 5px;
+}
+
+.message-sender {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    opacity: 0.9;
 }
 
 .message-time {
@@ -72,6 +84,7 @@
 .chat-input-group {
     display: flex;
     gap: 1rem;
+    align-items: flex-end;
 }
 
 .chat-input {
@@ -82,6 +95,9 @@
     color: white;
     padding: 0.75rem 1rem;
     font-size: 1rem;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
 }
 
 .chat-input:focus {
@@ -89,6 +105,10 @@
     border-color: #667eea;
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
     outline: none;
+}
+
+.chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .btn-send {
@@ -99,11 +119,22 @@
     color: white;
     font-weight: 600;
     transition: all 0.3s ease;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.btn-send:hover {
+.btn-send:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.btn-send:disabled {
+    background: rgba(102, 126, 234, 0.3);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .no-messages {
@@ -111,43 +142,144 @@
     color: rgba(255, 255, 255, 0.7);
     padding: 2rem;
     font-style: italic;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
 }
 
 .typing-indicator {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.1);
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     border-radius: 20px;
     font-style: italic;
     color: rgba(255, 255, 255, 0.6);
     display: none;
+    border-bottom-left-radius: 5px;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #ffffff;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+}
+
+.unread-badge {
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Scrollbar styling */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.3);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(102, 126, 234, 0.5);
+}
+
+.connection-status {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin: 0 1.5rem;
+}
+
+.connection-status.connected {
+    color: #28a745;
+}
+
+.connection-status.disconnected {
+    color: #dc3545;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="chat-container">
-        <div class="chat-header">
-            <i class="fas fa-comments me-2"></i>Chat with Admin Support
-        </div>
-        
-        <div class="chat-messages" id="chat-messages">
-            <div class="no-messages" id="no-messages">
-                <i class="fas fa-comment-slash fa-2x mb-3"></i><br>
-                No messages yet. Start a conversation!
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-white"><i class="fas fa-comments me-2"></i>Support Chat</h2>
+                <div class="connection-status connected" id="connectionStatus">
+                    <i class="fas fa-circle me-1"></i>Connected
+                </div>
             </div>
-            <div class="typing-indicator" id="typing-indicator">
-                Admin is typing...
+            
+            <div class="chat-container">
+                <div class="chat-header">
+                    <i class="fas fa-headset"></i>
+                    <span>Chat with Admin Support</span>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <div class="no-messages" id="no-messages">
+                        <i class="fas fa-comment-slash fa-3x mb-3 opacity-50"></i><br>
+                        <h5 class="text-light mb-2">Welcome to Support Chat</h5>
+                        <p class="mb-0">Start a conversation with our admin team for assistance</p>
+                    </div>
+                    <div class="typing-indicator" id="typing-indicator">
+                        <i class="fas fa-ellipsis-h me-2"></i>Admin is typing...
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="chat-input-group">
+                        <textarea id="messageInput" class="chat-input" placeholder="Type your message here..." maxlength="1000" rows="1"></textarea>
+                        <button id="sendBtn" class="btn-send">
+                            <i class="fas fa-paper-plane me-2"></i>Send
+                        </button>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <small class="text-muted">Press Enter to send, Shift+Enter for new line</small>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div class="chat-input-container">
-            <div class="chat-input-group">
-                <input type="text" id="message-input" class="chat-input" placeholder="Type your message here..." maxlength="500">
-                <button id="send-btn" class="btn-send">
-                    <i class="fas fa-paper-plane me-2"></i>Send
-                </button>
+            
+            <div class="mt-4">
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="fas fa-info-circle me-2"></i>Chat Information</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li><small><i class="fas fa-clock me-2"></i>Admin response time: Usually within 5-10 minutes</small></li>
+                            <li><small><i class="fas fa-shield-alt me-2"></i>Your conversations are secure and private</small></li>
+                            <li><small><i class="fas fa-history me-2"></i>Chat history is saved for 30 days</small></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -156,16 +288,59 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chat-messages');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
     const noMessages = document.getElementById('no-messages');
     const typingIndicator = document.getElementById('typing-indicator');
+    const connectionStatus = document.getElementById('connectionStatus');
+    
+    let isConnected = true;
+    let autoRefreshInterval = null;
 
+    // Utility function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Format time
+    function formatTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Auto-resize textarea
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+
+    // Update connection status
+    function updateConnectionStatus(connected) {
+        isConnected = connected;
+        if (connected) {
+            connectionStatus.innerHTML = '<i class="fas fa-circle me-1"></i>Connected';
+            connectionStatus.className = 'connection-status connected';
+        } else {
+            connectionStatus.innerHTML = '<i class="fas fa-circle me-1"></i>Reconnecting...';
+            connectionStatus.className = 'connection-status disconnected';
+        }
+    }
+
+    // Load messages
     function loadMessages() {
+        if (!isConnected) return;
+        
         fetch('/get_messages')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
             .then(data => {
-                if (data.messages && data.messages.length > 0) {
+                updateConnectionStatus(true);
+                
+                if (data.success && data.messages && data.messages.length > 0) {
                     noMessages.style.display = 'none';
                     
                     chatMessages.innerHTML = '';
@@ -173,27 +348,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         const messageDiv = document.createElement('div');
                         messageDiv.className = `message ${message.is_own ? 'user' : 'admin'}`;
                         
-                        messageDiv.innerHTML = `
+                        let messageContent = '';
+                        if (!message.is_own) {
+                            messageContent += `<div class="message-sender">${escapeHtml(message.sender_full_name || message.sender_username)}</div>`;
+                        }
+                        
+                        messageContent += `
                             <div class="message-text">${escapeHtml(message.message)}</div>
                             <div class="message-time">
-                                ${new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                ${formatTime(message.created_at)}
+                                ${message.is_read && message.is_own ? ' <i class="fas fa-check-double text-info"></i>' : ''}
                             </div>
                         `;
                         
+                        messageDiv.innerHTML = messageContent;
                         chatMessages.appendChild(messageDiv);
                     });
                     
                     // Scroll to bottom
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 } else {
-                    noMessages.style.display = 'block';
+                    noMessages.style.display = 'flex';
                 }
             })
             .catch(error => {
                 console.error('Error loading messages:', error);
+                updateConnectionStatus(false);
             });
     }
 
+    // Send message
     function sendMessage() {
         const message = messageInput.value.trim();
         if (!message) return;
@@ -201,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Disable input while sending
         messageInput.disabled = true;
         sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="loading-spinner"></span>Sending...';
 
         fetch('/send_message', {
             method: 'POST',
@@ -215,44 +400,78 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 messageInput.value = '';
+                messageInput.style.height = 'auto';
                 loadMessages(); // Reload messages to show the new one
+                updateUnreadCount(); // Update unread count
             } else {
                 alert('Failed to send message: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
-            alert('Error sending message');
+            alert('Error sending message. Please check your connection.');
             console.error('Error:', error);
         })
         .finally(() => {
             messageInput.disabled = false;
             sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send';
             messageInput.focus();
         });
     }
 
-    // Utility function to escape HTML
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    // Update unread message count
+    function updateUnreadCount() {
+        fetch('/get_unread_count')
+            .then(response => response.json())
+            .then(data => {
+                const unreadBadge = document.getElementById('unread-badge');
+                if (unreadBadge) {
+                    if (data.count > 0) {
+                        unreadBadge.textContent = data.count;
+                        unreadBadge.classList.remove('d-none');
+                    } else {
+                        unreadBadge.classList.add('d-none');
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating unread count:', error));
     }
 
     // Event listeners
     sendBtn.addEventListener('click', sendMessage);
     
-    messageInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             sendMessage();
         }
+    });
+    
+    messageInput.addEventListener('input', function() {
+        autoResizeTextarea(this);
     });
 
     // Load messages initially and set up auto-refresh
     loadMessages();
-    setInterval(loadMessages, 3000); // Refresh every 3 seconds
+    updateUnreadCount();
+    
+    autoRefreshInterval = setInterval(() => {
+        loadMessages();
+        updateUnreadCount();
+    }, 3000); // Refresh every 3 seconds
 
     // Focus input on load
     messageInput.focus();
+
+    // Clean up interval when page is unloaded
+    window.addEventListener('beforeunload', function() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    });
 });
 </script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}

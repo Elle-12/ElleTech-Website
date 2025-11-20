@@ -855,11 +855,11 @@ def admin_dashboard():
     total_users = total_users_row['count'] if total_users_row else 0
     # Fetch product stocks (lowest first)
     products_stocks = query_all("SELECT id, name, stock_qty FROM products ORDER BY stock_qty ASC")
-    return render_template('admin/admin_dashboard.html', 
-                         total_products=total_products, 
-                         total_orders=total_orders, 
-                         total_users=total_users, 
-                         products_stocks=products_stocks, 
+    return render_template('admin/dashboard.html',
+                         total_products=total_products,
+                         total_orders=total_orders,
+                         total_users=total_users,
+                         products_stocks=products_stocks,
                          content=admin_dashboard_content)
 
 @app.route('/admin_orders', methods=['GET', 'POST'])
@@ -1193,28 +1193,41 @@ def get_messages():
     if r:
         return jsonify({'messages': []}), 403
     
-    rows = query_all("""
-        SELECT c.*, u.username AS sender_username
-        FROM chats c
-        JOIN users u ON c.sender_id = u.id
-        WHERE (c.sender_id=%s AND c.receiver_id=%s)
-           OR (c.sender_id=%s AND c.receiver_id=%s)
-        ORDER BY c.created_at ASC
-    """, (session['user_id'], ADMIN_ID, ADMIN_ID, session['user_id']))
-    
-    # Format messages for frontend
-    messages = []
-    for row in rows:
-        messages.append({
-            'id': row['id'],
-            'sender_id': row['sender_id'],
-            'sender_username': row['sender_username'],
-            'message': row['message'],
-            'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
-            'is_own': row['sender_id'] == session['user_id']
-        })
-    
-    return jsonify({'messages': messages})
+    try:
+        rows = query_all("""
+            SELECT c.*, u.username AS sender_username, u.full_name AS sender_full_name
+            FROM chats c
+            JOIN users u ON c.sender_id = u.id
+            WHERE (c.sender_id=%s AND c.receiver_id=%s)
+               OR (c.sender_id=%s AND c.receiver_id=%s)
+            ORDER BY c.created_at ASC
+        """, (session['user_id'], ADMIN_ID, ADMIN_ID, session['user_id']))
+        
+        # Mark messages as read when user fetches them
+        execute("""
+            UPDATE chats 
+            SET is_read = 1 
+            WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+        """, (session['user_id'], ADMIN_ID))
+        
+        # Format messages for frontend
+        messages = []
+        for row in rows:
+            messages.append({
+                'id': row['id'],
+                'sender_id': row['sender_id'],
+                'sender_username': row['sender_username'],
+                'sender_full_name': row['sender_full_name'],
+                'message': row['message'],
+                'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+                'is_own': row['sender_id'] == session['user_id'],
+                'is_read': bool(row['is_read'])
+            })
+        
+        return jsonify({'success': True, 'messages': messages})
+    except Exception as e:
+        print(f"Error in get_messages: {str(e)}")
+        return jsonify({'success': False, 'messages': [], 'error': 'Failed to load messages'})
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -1223,66 +1236,138 @@ def send_message():
     if r:
         return jsonify({'success': False, 'error': 'Login required'}), 403
     
-    data = request.get_json(silent=True) or {}
-    msg = data.get('message', '').strip()
-    
-    if not msg:
-        return jsonify({'success': False, 'error': 'Message cannot be empty'})
+    try:
+        data = request.get_json(silent=True) or {}
+        msg = data.get('message', '').strip()
+        
+        if not msg:
+            return jsonify({'success': False, 'error': 'Message cannot be empty'})
+        
+        if len(msg) > 1000:
+            return jsonify({'success': False, 'error': 'Message too long (max 1000 characters)'})
+        
+        # Insert message
+        message_id = execute("""
+            INSERT INTO chats(sender_id, receiver_id, message, created_at, is_read) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session['user_id'], ADMIN_ID, msg, datetime.now(), 0))
+        
+        if message_id:
+            return jsonify({'success': True, 'message': 'Message sent successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to send message'})
+            
+    except Exception as e:
+        print(f"Error in send_message: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'})
+
+@app.route('/get_unread_count')
+def get_unread_count():
+    """Get count of unread messages for user."""
+    r = require_login()
+    if r:
+        return jsonify({'count': 0})
     
     try:
-        execute("INSERT INTO chats(sender_id, receiver_id, message, created_at) VALUES (%s, %s, %s, %s)",
-                (session['user_id'], ADMIN_ID, msg, datetime.now()))
-        return jsonify({'success': True})
+        result = query_one("""
+            SELECT COUNT(*) as count 
+            FROM chats 
+            WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+        """, (session['user_id'], ADMIN_ID))
+        
+        return jsonify({'count': result['count'] if result else 0})
     except Exception as e:
-        return jsonify({'success': False, 'error': 'Failed to send message'})
+        return jsonify({'count': 0})
 
 # -------------------------------------------------
-#  ADMIN CHAT
+#  ADMIN CHAT 
 # -------------------------------------------------
+
 @app.route('/admin/chat')
 def admin_chat():
     r = require_admin()
     if r:
         return r
-    return render_template('admin_chat.html')
+    return render_template('admin/admin_chat.html')
 
 @app.route('/admin_get_users')
 def admin_get_users():
-    """Return list of users who ever chatted (last message per user)."""
+    """Return list of ALL users sorted by latest chat activity."""
     r = require_admin()
     if r:
         return jsonify({'users': []}), 403
-    
-    rows = query_all("""
-        SELECT DISTINCT u.id, u.username, u.full_name,
-               (SELECT message FROM chats 
-                WHERE (sender_id=u.id AND receiver_id=%s) 
-                   OR (sender_id=%s AND receiver_id=u.id) 
-                ORDER BY created_at DESC LIMIT 1) as last_message,
-               (SELECT created_at FROM chats 
-                WHERE (sender_id=u.id AND receiver_id=%s) 
-                   OR (sender_id=%s AND receiver_id=u.id) 
-                ORDER BY created_at DESC LIMIT 1) as last_message_time
-        FROM users u
-        WHERE u.id IN (
-            SELECT DISTINCT sender_id FROM chats WHERE receiver_id=%s
-            UNION
-            SELECT DISTINCT receiver_id FROM chats WHERE sender_id=%s
-        ) AND u.id != %s
-        ORDER BY last_message_time DESC
-    """, (ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID, ADMIN_ID))
-    
-    users = []
-    for row in rows:
-        users.append({
-            'id': row['id'],
-            'username': row['username'],
-            'full_name': row['full_name'],
-            'last_message': row['last_message'] or 'No messages yet',
-            'last_message_time': row['last_message_time'].strftime('%Y-%m-%d %H:%M') if row['last_message_time'] else 'Never'
-        })
-    
-    return jsonify({'users': users})
+
+    try:
+        # Get ALL users except admin
+        users_rows = query_all("""
+            SELECT id, username, full_name, email, created_at 
+            FROM users 
+            WHERE id != %s AND role = 'user'
+            ORDER BY created_at DESC
+        """, (ADMIN_ID,))
+
+        users = []
+        for user_row in users_rows:
+            # Get the latest chat timestamp between admin and user
+            latest_chat_result = query_one("""
+                SELECT created_at 
+                FROM chats 
+                WHERE (sender_id = %s AND receiver_id = %s) 
+                   OR (sender_id = %s AND receiver_id = %s)
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, (user_row['id'], ADMIN_ID, ADMIN_ID, user_row['id']))
+            
+            # Check if user has any chats with admin
+            chat_exists = bool(latest_chat_result)
+            
+            # Get unread count (messages from user to admin that are unread)
+            unread_result = query_one("""
+                SELECT COUNT(*) as count 
+                FROM chats 
+                WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+            """, (ADMIN_ID, user_row['id']))
+            
+            # Get last message between user and admin
+            last_message_result = query_one("""
+                SELECT message, created_at, sender_id
+                FROM chats 
+                WHERE (sender_id = %s AND receiver_id = %s) 
+                   OR (sender_id = %s AND receiver_id = %s)
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, (user_row['id'], ADMIN_ID, ADMIN_ID, user_row['id']))
+
+            users.append({
+                'id': user_row['id'],
+                'username': user_row['username'],
+                'full_name': user_row['full_name'] or user_row['username'],
+                'email': user_row['email'],
+                'unread_count': unread_result['count'] if unread_result else 0,
+                'last_message': last_message_result['message'] if last_message_result else 'No messages yet',
+                'last_message_time': latest_chat_result['created_at'] if latest_chat_result else None,
+                'last_message_timestamp': latest_chat_result['created_at'].timestamp() if latest_chat_result else 0,
+                'has_chatted': chat_exists,
+                'member_since': user_row['created_at'].strftime('%Y-%m-%d') if user_row['created_at'] else 'Unknown',
+                'is_own_last_message': last_message_result and last_message_result['sender_id'] == ADMIN_ID if last_message_result else False
+            })
+
+        # Sort users: those with chats first (by latest message time), then new users (by registration date)
+        users_with_chats = [u for u in users if u['has_chatted']]
+        users_without_chats = [u for u in users if not u['has_chatted']]
+        
+        # Sort users with chats by latest message time (newest first)
+        users_with_chats.sort(key=lambda x: x['last_message_timestamp'], reverse=True)
+        # Sort users without chats by registration date (newest first)
+        users_without_chats.sort(key=lambda x: x['member_since'], reverse=True)
+        
+        # Combine the lists
+        sorted_users = users_with_chats + users_without_chats
+
+        return jsonify({'success': True, 'users': sorted_users})
+    except Exception as e:
+        print(f"Error in admin_get_users: {str(e)}")
+        return jsonify({'success': False, 'users': [], 'error': str(e)})
 
 @app.route('/admin_get_messages')
 def admin_get_messages():
@@ -1290,53 +1375,132 @@ def admin_get_messages():
     r = require_admin()
     if r:
         return jsonify({'messages': []}), 403
-    
-    user_id = request.args.get('user_id', type=int)
-    if not user_id:
-        return jsonify({'messages': []})
-    
-    rows = query_all("""
-        SELECT c.*, u.username AS sender_username
-        FROM chats c
-        JOIN users u ON c.sender_id = u.id
-        WHERE (c.sender_id=%s AND c.receiver_id=%s)
-           OR (c.sender_id=%s AND c.receiver_id=%s)
-        ORDER BY c.created_at ASC
-    """, (user_id, ADMIN_ID, ADMIN_ID, user_id))
-    
-    messages = []
-    for row in rows:
-        messages.append({
-            'id': row['id'],
-            'sender_id': row['sender_id'],
-            'sender_username': row['sender_username'],
-            'message': row['message'],
-            'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
-            'is_own': row['sender_id'] == ADMIN_ID
-        })
-    
-    return jsonify({'messages': messages})
+
+    try:
+        user_id = request.args.get('user_id', type=int)
+        if not user_id:
+            return jsonify({'success': False, 'messages': [], 'error': 'User ID required'})
+
+        # Verify user exists
+        user = query_one("SELECT id, username, full_name FROM users WHERE id=%s", (user_id,))
+        if not user:
+            return jsonify({'success': False, 'messages': [], 'error': 'User not found'})
+
+        # Mark messages as read when admin fetches them
+        execute("""
+            UPDATE chats 
+            SET is_read = 1 
+            WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+        """, (ADMIN_ID, user_id))
+
+        # Get messages between admin and user
+        rows = query_all("""
+            SELECT c.*, 
+                   u.username AS sender_username, 
+                   u.full_name AS sender_full_name
+            FROM chats c
+            JOIN users u ON c.sender_id = u.id
+            WHERE (c.sender_id = %s AND c.receiver_id = %s)
+               OR (c.sender_id = %s AND c.receiver_id = %s)
+            ORDER BY c.created_at ASC
+        """, (user_id, ADMIN_ID, ADMIN_ID, user_id))
+
+        messages = []
+        for row in rows:
+            messages.append({
+                'id': row['id'],
+                'sender_id': row['sender_id'],
+                'sender_username': row['sender_username'],
+                'sender_full_name': row['sender_full_name'],
+                'message': row['message'],
+                'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+                'is_own': row['sender_id'] == ADMIN_ID,
+                'is_read': bool(row['is_read'])
+            })
+
+        return jsonify({'success': True, 'messages': messages, 'user_info': {
+            'username': user['username'],
+            'full_name': user['full_name']
+        }})
+    except Exception as e:
+        print(f"Error in admin_get_messages: {str(e)}")
+        return jsonify({'success': False, 'messages': [], 'error': 'Failed to load messages'})
 
 @app.route('/admin_send_message', methods=['POST'])
 def admin_send_message():
-    """Admin replies to a user."""
+    """Admin sends a message to a user."""
     r = require_admin()
     if r:
         return jsonify({'success': False, 'error': 'Admin access required'}), 403
-    
-    data = request.get_json(silent=True) or {}
-    msg = data.get('message', '').strip()
-    receiver_id = data.get('receiver_id', type=int)
-    
-    if not msg or not receiver_id:
-        return jsonify({'success': False, 'error': 'Message and receiver ID required'})
+
+    try:
+        # Get JSON data properly
+        if request.content_type != 'application/json':
+            return jsonify({'success': False, 'error': 'Content-Type must be application/json'})
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'})
+        
+        msg = data.get('message', '').strip()
+        receiver_id = data.get('receiver_id')
+        
+        # Convert receiver_id to integer if it's not None
+        if receiver_id is not None:
+            try:
+                receiver_id = int(receiver_id)
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Invalid receiver ID'})
+
+        print(f"Admin sending message: '{msg}' to user: {receiver_id}")
+
+        if not msg:
+            return jsonify({'success': False, 'error': 'Message cannot be empty'})
+
+        if not receiver_id:
+            return jsonify({'success': False, 'error': 'Receiver ID required'})
+
+        if len(msg) > 1000:
+            return jsonify({'success': False, 'error': 'Message too long (max 1000 characters)'})
+
+        # Verify receiver exists
+        receiver = query_one("SELECT id, username, full_name FROM users WHERE id=%s", (receiver_id,))
+        if not receiver:
+            return jsonify({'success': False, 'error': 'User not found'})
+
+        # Insert message - admin sends to user
+        message_id = execute("""
+            INSERT INTO chats (sender_id, receiver_id, message, created_at, is_read) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (ADMIN_ID, receiver_id, msg, datetime.now(), 0))
+
+        print(f"Message inserted with ID: {message_id}")
+
+        if message_id:
+            return jsonify({'success': True, 'message': 'Message sent successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to send message - database error'})
+
+    except Exception as e:
+        print(f"Error in admin_send_message: {str(e)}")
+        return jsonify({'success': False, 'error': f'Internal server error: {str(e)}'})
+
+@app.route('/admin_get_unread_count')
+def admin_get_unread_count():
+    """Get total unread messages for admin."""
+    r = require_admin()
+    if r:
+        return jsonify({'count': 0})
     
     try:
-        execute("INSERT INTO chats(sender_id, receiver_id, message, created_at) VALUES (%s, %s, %s, %s)",
-                (ADMIN_ID, receiver_id, msg, datetime.now()))
-        return jsonify({'success': True})
+        result = query_one("""
+            SELECT COUNT(*) as count 
+            FROM chats 
+            WHERE receiver_id = %s AND is_read = 0
+        """, (ADMIN_ID,))
+        
+        return jsonify({'count': result['count'] if result else 0})
     except Exception as e:
-        return jsonify({'success': False, 'error': 'Failed to send message'})
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+        return jsonify({'count': 0})
+    
+app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
