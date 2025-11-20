@@ -1,0 +1,237 @@
+{% extends "layout.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+<style>
+/* --- HERO SECTION --- */
+.hero-section {
+  position: relative;
+  height: 80vh;
+  background: linear-gradient(135deg, #7aa4ce 0%, #947541 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.hero-section h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+.hero-section p {
+  font-size: 1.2rem;
+  color: #f0f0f0;
+  margin-bottom: 2rem;
+}
+
+.hero-section .btn {
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border: none;
+  color: white;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* --- FEATURED PRODUCTS --- */
+.card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 15px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.card-img-top {
+  height: 250px;
+  object-fit: cover;
+}
+
+.quantity-input {
+  width: 60px;
+  text-align: center;
+}
+
+.btn-add-cart, .btn-order-now {
+  flex: 1;
+  height: 36px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 300;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  letter-spacing: 0.5px;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.btn-add-cart {
+  background: linear-gradient(135deg, #4d7aa2 0%, #63bd4c 100%);
+  color: white;
+}
+
+.btn-add-cart:hover {
+  background: linear-gradient(135deg, #49a748 0%, #40729d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+}
+
+.btn-order-now {
+  background: linear-gradient(135deg, #667eea 0%, #bd7d29 100%);
+  color: white;
+}
+
+.btn-order-now:hover {
+  background: linear-gradient(135deg, #ab6515 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* --- FEATURES SECTION --- */
+.features-section .feature-box {
+  padding: 2rem;
+  border-radius: 15px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+/* --- CTA SECTION --- */
+.cta-section {
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #a25c4b 100%);
+  text-align: center;
+  color: white;
+  border-radius: 20px;
+}
+
+/* --- RESPONSIVE --- */
+@media(max-width:768px) {
+  .hero-section h1 { font-size: 2rem; }
+  .hero-section p { font-size: 1rem; }
+  .card-img-top { height: 200px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-content">
+    <h1>Welcome to <span class="text-info">ElleTech</span></h1>
+    <p>Innovating the Future of Digital Electronics</p>
+    <a href="{{ url_for('shop') }}" class="btn">Shop Now</a>
+  </div>
+</section>
+
+<!-- FEATURED PRODUCTS -->
+<section class="py-5 bg-dark text-light">
+  <div class="container">
+    <h2 class="text-center mb-4">Featured Products</h2>
+    <div class="row">
+      {% for p in featured %}
+      <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+        <div class="card h-100 text-center p-2">
+          {% if p.image %}
+          <img src="{{ url_for('static', filename='uploads/' + p.image) }}" class="card-img-top" alt="{{ p.name }}">
+          {% else %}
+          <img src="{{ url_for('static', filename='img/logo.png') }}" class="card-img-top" alt="{{ p.name }}">
+          {% endif %}
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title">{{ p.name }}</h5>
+            <p class="small text-secondary flex-grow-1">{{ p.description or "No description available." }}</p>
+            <p class="fw-bold text-info">₱{{ "%.2f"|format(p.price) }}</p>
+            {% if p.stock_qty > 0 %}
+              <p class="text-success small mb-2">In Stock: {{ p.stock_qty }}</p>
+            {% else %}
+              <p class="text-danger small mb-2">Out of Stock</p>
+            {% endif %}
+
+            <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST">
+              <div class="mb-2">
+                <select name="payment_method" class="form-select form-select-sm">
+                  <option value="Cash on Delivery">Cash on Delivery</option>
+                  <option value="GCash">GCash</option>
+                  <option value="PayMaya">PayMaya</option>
+                </select>
+              </div>
+              <div class="input-group mb-2">
+                <input type="number" name="quantity" class="form-control quantity-input" value="1" min="1">
+                <button name="action" value="add_to_cart" type="submit" class="btn-add-cart">Add to Cart</button>
+                <button name="action" value="buy_now" type="submit" class="btn-order-now">Buy Now</button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section py-5">
+  <div class="container text-center">
+    <h2 class="mb-4">Why Choose ElleTech?</h2>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-box">
+          <i class="bi bi-cpu fs-1 text-info mb-3"></i>
+          <h5>Cutting-Edge Tech</h5>
+          <p>Experience the latest innovations in digital electronics built for performance.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-box">
+          <i class="bi bi-lightning-charge fs-1 text-info mb-3"></i>
+          <h5>Fast & Reliable</h5>
+          <p>Our products are designed for speed, durability, and consistent performance.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-box">
+          <i class="bi bi-shield-check fs-1 text-info mb-3"></i>
+          <h5>Secure Transactions</h5>
+          <p>Your data and purchases are protected with top-tier security measures.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALL TO ACTION -->
+<section class="cta-section py-5">
+  <div class="container">
+    <h2>Join the ElleTech Community</h2>
+    <p>Be the first to know about our new releases, discounts, and exclusive deals.</p>
+    <a href="{{ url_for('membership') }}" class="btn btn-lg btn-info">Become a Member</a>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const qtyInputs = document.querySelectorAll('.quantity-input');
+  qtyInputs.forEach(input => {
+    input.addEventListener('input', function() {
+      if (this.value === "" || this.value < 1) this.value = 1;
+    });
+  });
+});
+</script>
+
+{% endblock %}

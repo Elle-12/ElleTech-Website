@@ -1,0 +1,75 @@
+{% extends "admin/admin_layout.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='style_admin.css') }}">
+<style>
+.hover-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="text-center mb-5">
+    <h2 class="fw-bold text-light">Admin Shop - All Products</h2>
+    <p class="text-secondary">Browse through all products in the system.</p>
+  </div>
+
+  <!-- Filter Section -->
+  <div class="text-center mb-4">
+    <form method="GET" action="{{ url_for('admin_shop') }}" class="d-inline-block">
+      <select name="category" class="form-select d-inline-block w-auto">
+        <option value="">All Categories</option>
+        <option value="Smartphones & Accessories" {% if selected_category == 'Smartphones & Accessories' %}selected{% endif %}>Smartphones & Accessories</option>
+        <option value="Computers & Laptops" {% if selected_category == 'Computers & Laptops' %}selected{% endif %}>Computers & Laptops</option>
+        <option value="Gaming" {% if selected_category == 'Gaming' %}selected{% endif %}>Gaming</option>
+        <option value="Audio & Headphones" {% if selected_category == 'Audio & Headphones' %}selected{% endif %}>Audio & Headphones</option>
+      </select>
+      <button type="submit" class="btn btn-info ms-2">Filter</button>
+      {% if selected_category %}
+        <a href="{{ url_for('admin_shop') }}" class="btn btn-secondary ms-2">Clear Filter</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Product Grid -->
+  <div class="row justify-content-center">
+    {% for p in products %}
+    <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+      <div class="card bg-dark border border-primary shadow-lg h-100 hover-card">
+        {% if p.image %}
+          <img src="{{ url_for('static', filename='uploads/' + p.image) }}" 
+               class="card-img-top rounded-top" alt="{{ p.name }}" style="height: 250px; object-fit: cover;">
+        {% else %}
+          <img src="{{ url_for('static', filename='img/logo.png') }}" 
+               class="card-img-top rounded-top" alt="{{ p.name }}" style="height: 250px; object-fit: cover;">
+        {% endif %}
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title text-light">{{ p.name }}</h5>
+          <p class="text-secondary small flex-grow-1">{{ p.description or "No description available." }}</p>
+          <p class="fw-bold text-info mb-2">₱{{ "%.2f"|format(p.price) }}</p>
+          <p class="text-secondary small mb-2">Stock: {{ p.stock_qty }}</p>
+          <p class="text-secondary small mb-3">Category: {{ p.category or "N/A" }}</p>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_products', product_id=p.id) }}" class="btn btn-warning btn-sm w-100">Edit</a>
+            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-sm w-100">View in Shop</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center">
+      <div class="card bg-dark p-5">
+        <h5 class="text-light">No Products Found</h5>
+        <p class="text-secondary">No products available{% if selected_category %} in this category{% endif %}.</p>
+        <a href="{{ url_for('admin_products') }}" class="btn btn-primary">Add Products</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

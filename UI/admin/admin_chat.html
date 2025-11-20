@@ -1,0 +1,579 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Admin Chat{% endblock %}
+{% block head %}
+<style>
+.admin-chat-wrapper {
+    display: flex;
+    height: 80vh;
+    background: rgba(26, 34, 43, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(63, 154, 228, 0.3);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.users-panel {
+    width: 350px;
+    border-right: 1px solid rgba(63, 154, 228, 0.2);
+    background: rgba(26, 34, 43, 0.8);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.users-header {
+    background: linear-gradient(135deg, #3f9ae4 0%, #2b6cb0 100%);
+    color: white;
+    padding: 1.5rem;
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.users-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.user-item {
+    border: none;
+    border-bottom: 1px solid rgba(63, 154, 228, 0.1);
+    border-radius: 0;
+    background: transparent;
+    color: white;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.user-item:hover, .user-item.active {
+    background: rgba(63, 154, 228, 0.2);
+    border-left: 4px solid #3f9ae4;
+}
+
+.user-item.active {
+    background: rgba(63, 154, 228, 0.3);
+}
+
+.user-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+}
+
+.user-full-name {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-bottom: 0.5rem;
+}
+
+.user-last-message {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.user-time {
+    font-size: 0.75rem;
+    opacity: 0.5;
+    text-align: right;
+}
+
+.chat-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #2b6cb0 0%, #3f9ae4 100%);
+    padding: 1.5rem;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.message {
+    max-width: 70%;
+    padding: 1rem 1.25rem;
+    border-radius: 18px;
+    position: relative;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.message.admin {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #3f9ae4 0%, #2b6cb0 100%);
+    color: white;
+    border-bottom-right-radius: 5px;
+}
+
+.message.user {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-bottom-left-radius: 5px;
+}
+
+.message-sender {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    opacity: 0.9;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+    text-align: right;
+}
+
+.chat-input-container {
+    padding: 1.5rem;
+    border-top: 1px solid rgba(63, 154, 228, 0.2);
+    background: rgba(26, 34, 43, 0.8);
+}
+
+.chat-input-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.chat-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: white;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+}
+
+.chat-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #3f9ae4;
+    box-shadow: 0 0 0 0.2rem rgba(63, 154, 228, 0.25);
+    outline: none;
+}
+
+.chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-send {
+    background: linear-gradient(135deg, #3f9ae4 0%, #2b6cb0 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-send:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2b6cb0 0%, #3f9ae4 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(63, 154, 228, 0.3);
+}
+
+.btn-send:disabled {
+    background: rgba(63, 154, 228, 0.3);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.no-chat-selected, .no-messages {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 3rem;
+    font-style: italic;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.no-users {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 2rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.typing-indicator {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 1rem;
+    border-radius: 18px;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.6);
+    display: none;
+    border-bottom-left-radius: 5px;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #ffffff;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Scrollbar styling */
+.users-list::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.users-list::-webkit-scrollbar-track,
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.users-list::-webkit-scrollbar-thumb,
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(63, 154, 228, 0.3);
+    border-radius: 3px;
+}
+
+.users-list::-webkit-scrollbar-thumb:hover,
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(63, 154, 228, 0.5);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-chat-wrapper">
+    <div class="users-panel">
+        <h6 class="users-header"><i class="fas fa-users me-2"></i>Customer Chats</h6>
+        <div id="usersList" class="users-list">
+            <!-- Users will be loaded here -->
+        </div>
+    </div>
+
+    <div class="chat-panel">
+        <div id="chatHeader" class="chat-header">
+            <i class="fas fa-comment me-2"></i>Select a customer to start chatting
+        </div>
+        
+        <div id="chatMessages" class="chat-messages">
+            <div class="no-chat-selected">
+                <i class="fas fa-comments fa-3x mb-3 opacity-50"></i><br>
+                <h5 class="text-light mb-2">Welcome to Admin Chat</h5>
+                <p class="mb-0">Select a customer from the list to view and reply to messages</p>
+            </div>
+            <div class="no-messages" id="noMessages" style="display: none;">
+                <i class="fas fa-comment-slash fa-2x mb-3 opacity-50"></i><br>
+                <h6 class="text-light mb-2">No messages yet</h6>
+                <p class="mb-0">Start the conversation by sending a message</p>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                <i class="fas fa-ellipsis-h me-2"></i>Customer is typing...
+            </div>
+        </div>
+        
+        <div id="chatInputContainer" class="chat-input-container" style="display: none;">
+            <div class="chat-input-group">
+                <textarea id="messageInput" class="chat-input" placeholder="Type your reply..." maxlength="500" rows="1"></textarea>
+                <button id="sendBtn" class="btn-send">
+                    <i class="fas fa-paper-plane me-2"></i>Send
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedUserId = null;
+let currentUserElement = null;
+let autoRefreshInterval = null;
+
+// Utility function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Format time
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Auto-resize textarea
+function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+// Load users list
+function loadUsers() {
+    fetch('/admin_get_users')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            const usersList = document.getElementById('usersList');
+            
+            if (data.users && data.users.length > 0) {
+                usersList.innerHTML = '';
+                
+                data.users.forEach(user => {
+                    const userElement = document.createElement('button');
+                    userElement.className = 'user-item';
+                    userElement.setAttribute('data-id', user.id);
+                    userElement.setAttribute('type', 'button');
+                    
+                    userElement.innerHTML = `
+                        <div class="user-name">${escapeHtml(user.username)}</div>
+                        <div class="user-full-name">${escapeHtml(user.full_name)}</div>
+                        <div class="user-last-message">${escapeHtml(user.last_message)}</div>
+                        <div class="user-time">${user.last_message_time}</div>
+                    `;
+                    
+                    userElement.addEventListener('click', function() {
+                        selectUser(user.id, userElement, user.username, user.full_name);
+                    });
+                    
+                    usersList.appendChild(userElement);
+                });
+            } else {
+                usersList.innerHTML = `
+                    <div class="no-users">
+                        <i class="fas fa-users fa-2x mb-3 opacity-50"></i><br>
+                        <h6 class="text-light mb-2">No Active Chats</h6>
+                        <p class="mb-0">Customer messages will appear here</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading users:', error);
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = `
+                <div class="no-users">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3 text-warning"></i><br>
+                    <h6 class="text-light mb-2">Failed to load chats</h6>
+                    <p class="mb-0">Please refresh the page</p>
+                </div>
+            `;
+        });
+}
+
+// Select user to chat with
+function selectUser(userId, userElement, username, fullName) {
+    selectedUserId = userId;
+    
+    // Update UI
+    if (currentUserElement) {
+        currentUserElement.classList.remove('active');
+    }
+    userElement.classList.add('active');
+    currentUserElement = userElement;
+    
+    document.getElementById('chatHeader').innerHTML = `
+        <i class="fas fa-comment me-2"></i>Chat with ${escapeHtml(fullName)} (${escapeHtml(username)})
+    `;
+    document.getElementById('chatInputContainer').style.display = 'block';
+    
+    loadMessages();
+    
+    // Focus on input
+    setTimeout(() => {
+        document.getElementById('messageInput').focus();
+    }, 100);
+}
+
+// Load messages for selected user
+function loadMessages() {
+    if (!selectedUserId) return;
+    
+    fetch('/admin_get_messages?user_id=' + selectedUserId)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            const chatMessages = document.getElementById('chatMessages');
+            const noMessages = document.getElementById('noMessages');
+            
+            if (data.messages && data.messages.length > 0) {
+                noMessages.style.display = 'none';
+                document.querySelector('.no-chat-selected').style.display = 'none';
+                
+                chatMessages.innerHTML = '';
+                data.messages.forEach(message => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${message.is_own ? 'admin' : 'user'}`;
+                    
+                    messageDiv.innerHTML = `
+                        ${!message.is_own ? `<div class="message-sender">${escapeHtml(message.sender_username)}</div>` : ''}
+                        <div class="message-text">${escapeHtml(message.message)}</div>
+                        <div class="message-time">${formatTime(message.created_at)}</div>
+                    `;
+                    
+                    chatMessages.appendChild(messageDiv);
+                });
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                document.querySelector('.no-chat-selected').style.display = 'none';
+                noMessages.style.display = 'flex';
+                chatMessages.innerHTML = '';
+                chatMessages.appendChild(noMessages);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            alert('Failed to load messages. Please try again.');
+        });
+}
+
+// Send message
+function sendMessage() {
+    if (!selectedUserId) {
+        alert('Please select a user to chat with.');
+        return;
+    }
+    
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!message) {
+        alert('Please enter a message.');
+        return;
+    }
+
+    if (message.length > 500) {
+        alert('Message too long. Maximum 500 characters.');
+        return;
+    }
+
+    // Disable input while sending
+    const sendBtn = document.getElementById('sendBtn');
+    
+    messageInput.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span class="loading-spinner"></span>Sending...';
+
+    fetch('/admin_send_message', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            receiver_id: selectedUserId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            loadMessages(); // Reload messages to show the new one
+            loadUsers(); // Refresh user list to update last message
+        } else {
+            alert('Failed to send message: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error sending message. Please check your connection.');
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send';
+        messageInput.focus();
+    });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // Send message on button click
+    sendBtn.addEventListener('click', sendMessage);
+    
+    // Send message on Enter key (but allow Shift+Enter for new line)
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Auto-resize textarea
+    messageInput.addEventListener('input', function() {
+        autoResizeTextarea(this);
+    });
+
+    // Load users initially
+    loadUsers();
+    
+    // Set up auto-refresh
+    autoRefreshInterval = setInterval(() => {
+        loadUsers();
+        if (selectedUserId) {
+            loadMessages();
+        }
+    }, 3000); // Refresh every 3 seconds
+});
+
+// Clean up interval when page is unloaded
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

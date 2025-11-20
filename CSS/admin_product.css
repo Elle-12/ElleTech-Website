@@ -1,0 +1,354 @@
+/* Admin Product Management - Matching Shop Design */
+
+body {
+  background-color: #0e141b;
+  color: #e3e6eb;
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding-bottom: 80px;
+}
+
+h2 {
+  text-shadow: 0 0 10px #00bfff;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+p.text-secondary {
+  color: #ffffff !important;
+}
+
+.card {
+  background-color: rgba(20, 30, 50, 0.95);
+  border: 1px solid rgba(0, 191, 255, 0.15);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 22px rgba(0, 191, 255, 0.2);
+  border-color: #00bfff;
+}
+
+.card img {
+  height: 250px !important;
+  width: 250px !important;
+  object-fit: cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-title {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card .text-secondary {
+  color: #aab4c2 !important;
+}
+
+.card .fw-bold {
+  color: #00bfff !important;
+}
+
+.form-control {
+  background-color: #141e2f;
+  color: #e3e6eb;
+  border: 1px solid #00bfff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: 0.3s;
+}
+
+.form-control:focus {
+  background-color: #1b2c44;
+  outline: none;
+  border-color: #33ccff;
+}
+
+.form-control::placeholder {
+  color: #aab4c2;
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.btn-success {
+  background: linear-gradient(90deg, #28a745, #20c997);
+  border: none;
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: linear-gradient(90deg, #20c997, #28a745);
+  transform: translateY(-2px);
+}
+
+.btn-warning {
+  background: linear-gradient(90deg, #ffc107, #fd7e14);
+  border: none;
+  color: #000;
+}
+
+.btn-warning:hover {
+  background: linear-gradient(90deg, #fd7e14, #ffc107);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: linear-gradient(90deg, #dc3545, #e74c3c);
+  border: none;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(90deg, #e74c3c, #dc3545);
+  transform: translateY(-2px);
+}
+
+.text-light {
+  color: #f8f9fa !important;
+}
+
+.bg-dark {
+  background-color: rgba(20, 30, 50, 0.95) !important;
+}
+
+.shadow-sm {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.py-4 {
+  padding-top: 1.5rem !important;
+  padding-bottom: 1.5rem !important;
+}
+
+.mb-5 {
+  margin-bottom: 3rem !important;
+}
+
+.mb-4 {
+  margin-bottom: 1.5rem !important;
+}
+
+.mb-3 {
+  margin-bottom: 1rem !important;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem !important;
+}
+
+.p-4 {
+  padding: 1.5rem !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.fw-bold {
+  font-weight: 700 !important;
+}
+
+.small {
+  font-size: 0.875em;
+}
+
+.row {
+  --bs-gutter-x: 1rem;
+  --bs-gutter-y: 0;
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: calc(-1 * var(--bs-gutter-y));
+  margin-right: calc(-0.5 * var(--bs-gutter-x));
+  margin-left: calc(-0.5 * var(--bs-gutter-x));
+}
+
+.row > * {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
+  margin-top: var(--bs-gutter-y);
+}
+
+.g-3 {
+  --bs-gutter-x: 1rem;
+  --bs-gutter-y: 1rem;
+}
+
+.col-md-6 {
+  flex: 0 0 auto;
+  width: 50%;
+}
+
+.col-md-3 {
+  flex: 0 0 auto;
+  width: 25%;
+}
+
+.col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.col-sm-6 {
+  flex: 0 0 auto;
+  width: 50%;
+}
+
+.col-md-4 {
+  flex: 0 0 auto;
+  width: 33.33333333%;
+}
+
+.col-lg-3 {
+  flex: 0 0 auto;
+  width: 25%;
+}
+
+.justify-content-center {
+  justify-content: center !important;
+}
+
+.h-100 {
+  height: 100% !important;
+}
+
+.hover-card {
+  transition: 0.3s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 22px rgba(0, 191, 255, 0.2);
+  border-color: #00bfff;
+}
+
+.flex-grow-1 {
+  flex-grow: 1 !important;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.flex-column {
+  flex-direction: column !important;
+}
+
+.gap-2 {
+  gap: 0.5rem !important;
+}
+
+.w-100 {
+  width: 100% !important;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+}
+
+.rounded-top {
+  border-top-left-radius: 14px !important;
+  border-top-right-radius: 14px !important;
+}
+
+@media (min-width: 768px) {
+  .col-md-6 {
+    flex: 0 0 auto;
+    width: 50%;
+  }
+  .col-md-3 {
+    flex: 0 0 auto;
+    width: 25%;
+  }
+  .col-md-4 {
+    flex: 0 0 auto;
+    width: 33.33333333%;
+  }
+}
+
+@media (min-width: 992px) {
+  .col-lg-3 {
+    flex: 0 0 auto;
+    width: 25%;
+  }
+}
+
+@media (max-width: 992px) {
+  .card img {
+    height: 225px !important;
+    width: 225px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  h2 {
+    font-size: 1.6rem;
+  }
+  .card img {
+    height: 200px !important;
+    width: 200px !important;
+  }
+  .form-control,
+  .btn {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 0 10px;
+  }
+}
+
+/* Custom Scrollbar Styles for Admin Product */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0e141b;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00bfff;
+  border-radius: 6px;
+  border: 2px solid #0e141b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #33ccff;
+}
+
+::-webkit-scrollbar-corner {
+  background: #0e141b;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #00bfff #0e141b;
+}
