@@ -9,11 +9,15 @@ from db import get_db, query_all, query_one, execute
 from datetime import datetime
 import json
 import random
+from flask_socketio import SocketIO, emit, join_room
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__, template_folder='UI', static_folder='static')
+
+# SocketIO configuration
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # --- Image upload config ---
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -262,6 +266,9 @@ layout_content = {
 
 ADMIN_ID = 1
 
+# Store active users and their socket IDs
+active_users = {}
+
 # UTIL: login required decorator-like check
 def require_login():
     if 'user_id' not in session:
@@ -274,11 +281,11 @@ def require_admin():
         return redirect(url_for('home'))
     return None
 
-# Initialize database tables (removed OTP table creation)
+# Initialize database tables (add is_read column to chats table)
 def init_tables():
     """Initialize required database tables"""
     try:
-        # Chat table only - OTP table removed
+        # Chat table with is_read column
         execute("""
             CREATE TABLE IF NOT EXISTS chats (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -286,6 +293,7 @@ def init_tables():
                 receiver_id INT NOT NULL,
                 message TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_read BOOLEAN DEFAULT FALSE,
                 FOREIGN KEY (sender_id) REFERENCES users(id),
                 FOREIGN KEY (receiver_id) REFERENCES users(id)
             )
@@ -1175,7 +1183,196 @@ def verify_payment_otp():
         return jsonify({'ok': False, 'msg': 'Internal server error. Please try again.'}), 500
 
 # -------------------------------------------------
-#  CHAT SYSTEM
+#  REAL-TIME CHAT SYSTEM WITH SOCKETIO
+# -------------------------------------------------
+
+@socketio.on('connect')
+def handle_connect():
+    """Handle user connection"""
+    if 'user_id' in session:
+        user_id = session['user_id']
+        active_users[user_id] = request.sid
+        
+        # Join user to their personal room
+        join_room(f"user_{user_id}")
+        
+        # If admin, join admin room
+        if session.get('role') == 'admin':
+            join_room("admin_room")
+        
+        print(f"User {user_id} connected with SID: {request.sid}")
+        
+        # Notify admin about user online status
+        if session.get('role') != 'admin':
+            emit('user_online_status', {
+                'user_id': user_id,
+                'username': session.get('username'),
+                'is_online': True
+            }, room="admin_room", broadcast=True)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle user disconnection"""
+    user_id = None
+    for uid, sid in active_users.items():
+        if sid == request.sid:
+            user_id = uid
+            break
+    
+    if user_id:
+        del active_users[user_id]
+        print(f"User {user_id} disconnected")
+        
+        # Notify admin about user offline status
+        emit('user_online_status', {
+            'user_id': user_id,
+            'username': session.get('username'),
+            'is_online': False
+        }, room="admin_room", broadcast=True)
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    """Handle sending messages in real-time"""
+    try:
+        if 'user_id' not in session:
+            return
+        
+        sender_id = session['user_id']
+        message = data.get('message', '').strip()
+        receiver_id = data.get('receiver_id', ADMIN_ID)  # Default to admin for users
+        
+        # Validate message
+        if not message:
+            emit('error', {'message': 'Message cannot be empty'})
+            return
+        
+        if len(message) > 1000:
+            emit('error', {'message': 'Message too long'})
+            return
+        
+        # Determine receiver based on who's sending
+        if session.get('role') == 'admin':
+            # Admin sending to user
+            if not receiver_id or receiver_id == ADMIN_ID:
+                emit('error', {'message': 'Invalid receiver'})
+                return
+        else:
+            # User sending to admin
+            receiver_id = ADMIN_ID
+        
+        # Save message to database
+        message_id = execute("""
+            INSERT INTO chats(sender_id, receiver_id, message, created_at, is_read) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (sender_id, receiver_id, message, datetime.now(), 0))
+        
+        if message_id:
+            # Get message details with user info
+            new_message = query_one("""
+                SELECT c.*, u.username, u.full_name 
+                FROM chats c 
+                JOIN users u ON c.sender_id = u.id 
+                WHERE c.id = %s
+            """, (message_id,))
+            
+            if new_message:
+                message_data = {
+                    'id': new_message['id'],
+                    'sender_id': new_message['sender_id'],
+                    'sender_username': new_message['username'],
+                    'sender_full_name': new_message['full_name'],
+                    'message': new_message['message'],
+                    'created_at': new_message['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+                    'is_own': True
+                }
+                
+                # Emit to sender (confirmation)
+                emit('new_message', message_data, room=request.sid)
+                
+                # Emit to receiver
+                if session.get('role') == 'admin':
+                    # Admin sent to user - notify user
+                    emit('new_message', {
+                        **message_data,
+                        'is_own': False
+                    }, room=f"user_{receiver_id}")
+                    
+                    # Also notify admin room for other admin sessions
+                    emit('new_message', message_data, room="admin_room")
+                else:
+                    # User sent to admin - notify admin
+                    emit('new_message', {
+                        **message_data,
+                        'is_own': False
+                    }, room="admin_room")
+                
+                # Update unread counts
+                update_unread_counts(receiver_id)
+                
+        else:
+            emit('error', {'message': 'Failed to send message'})
+            
+    except Exception as e:
+        print(f"Error in handle_send_message: {str(e)}")
+        emit('error', {'message': 'Internal server error'})
+
+@socketio.on('mark_messages_read')
+def handle_mark_messages_read(data):
+    """Mark messages as read in real-time"""
+    try:
+        if 'user_id' not in session:
+            return
+        
+        user_id = session['user_id']
+        other_user_id = data.get('other_user_id')
+        
+        if not other_user_id:
+            return
+        
+        # Mark messages as read
+        execute("""
+            UPDATE chats 
+            SET is_read = 1 
+            WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+        """, (user_id, other_user_id))
+        
+        # Update unread counts
+        update_unread_counts(user_id)
+        
+    except Exception as e:
+        print(f"Error in handle_mark_messages_read: {str(e)}")
+
+def update_unread_counts(user_id=None):
+    """Update unread message counts for users and admin"""
+    try:
+        if user_id:
+            # Update specific user's unread count
+            user_count = query_one("""
+                SELECT COUNT(*) as count 
+                FROM chats 
+                WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
+            """, (user_id, ADMIN_ID))
+            
+            emit('unread_count_update', {
+                'count': user_count['count'] if user_count else 0
+            }, room=f"user_{user_id}")
+        
+        # Always update admin's total unread count
+        admin_count = query_one("""
+            SELECT COUNT(*) as count 
+            FROM chats 
+            WHERE receiver_id = %s AND is_read = 0
+        """, (ADMIN_ID,))
+        
+        emit('admin_unread_count_update', {
+            'count': admin_count['count'] if admin_count else 0
+        }, room="admin_room")
+        
+    except Exception as e:
+        print(f"Error in update_unread_counts: {str(e)}")
+
+# -------------------------------------------------
+#  CHAT ROUTES (Updated for real-time)
 # -------------------------------------------------
 
 @app.route('/chat')
@@ -1210,6 +1407,9 @@ def get_messages():
             WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
         """, (session['user_id'], ADMIN_ID))
         
+        # Update unread counts
+        update_unread_counts(session['user_id'])
+        
         # Format messages for frontend
         messages = []
         for row in rows:
@@ -1228,38 +1428,6 @@ def get_messages():
     except Exception as e:
         print(f"Error in get_messages: {str(e)}")
         return jsonify({'success': False, 'messages': [], 'error': 'Failed to load messages'})
-
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    """User sends a message to admin."""
-    r = require_login()
-    if r:
-        return jsonify({'success': False, 'error': 'Login required'}), 403
-    
-    try:
-        data = request.get_json(silent=True) or {}
-        msg = data.get('message', '').strip()
-        
-        if not msg:
-            return jsonify({'success': False, 'error': 'Message cannot be empty'})
-        
-        if len(msg) > 1000:
-            return jsonify({'success': False, 'error': 'Message too long (max 1000 characters)'})
-        
-        # Insert message
-        message_id = execute("""
-            INSERT INTO chats(sender_id, receiver_id, message, created_at, is_read) 
-            VALUES (%s, %s, %s, %s, %s)
-        """, (session['user_id'], ADMIN_ID, msg, datetime.now(), 0))
-        
-        if message_id:
-            return jsonify({'success': True, 'message': 'Message sent successfully'})
-        else:
-            return jsonify({'success': False, 'error': 'Failed to send message'})
-            
-    except Exception as e:
-        print(f"Error in send_message: {str(e)}")
-        return jsonify({'success': False, 'error': 'Internal server error'})
 
 @app.route('/get_unread_count')
 def get_unread_count():
@@ -1280,7 +1448,7 @@ def get_unread_count():
         return jsonify({'count': 0})
 
 # -------------------------------------------------
-#  ADMIN CHAT 
+#  ADMIN CHAT (Updated for real-time)
 # -------------------------------------------------
 
 @app.route('/admin/chat')
@@ -1338,6 +1506,9 @@ def admin_get_users():
                 LIMIT 1
             """, (user_row['id'], ADMIN_ID, ADMIN_ID, user_row['id']))
 
+            # Check if user is currently online
+            is_online = user_row['id'] in active_users
+
             users.append({
                 'id': user_row['id'],
                 'username': user_row['username'],
@@ -1349,7 +1520,8 @@ def admin_get_users():
                 'last_message_timestamp': latest_chat_result['created_at'].timestamp() if latest_chat_result else 0,
                 'has_chatted': chat_exists,
                 'member_since': user_row['created_at'].strftime('%Y-%m-%d') if user_row['created_at'] else 'Unknown',
-                'is_own_last_message': last_message_result and last_message_result['sender_id'] == ADMIN_ID if last_message_result else False
+                'is_own_last_message': last_message_result and last_message_result['sender_id'] == ADMIN_ID if last_message_result else False,
+                'is_online': is_online
             })
 
         # Sort users: those with chats first (by latest message time), then new users (by registration date)
@@ -1393,6 +1565,9 @@ def admin_get_messages():
             WHERE receiver_id = %s AND sender_id = %s AND is_read = 0
         """, (ADMIN_ID, user_id))
 
+        # Update unread counts
+        update_unread_counts()
+
         # Get messages between admin and user
         rows = query_all("""
             SELECT c.*, 
@@ -1420,7 +1595,8 @@ def admin_get_messages():
 
         return jsonify({'success': True, 'messages': messages, 'user_info': {
             'username': user['username'],
-            'full_name': user['full_name']
+            'full_name': user['full_name'],
+            'is_online': user_id in active_users
         }})
     except Exception as e:
         print(f"Error in admin_get_messages: {str(e)}")
@@ -1502,5 +1678,6 @@ def admin_get_unread_count():
         return jsonify({'count': result['count'] if result else 0})
     except Exception as e:
         return jsonify({'count': 0})
-    
-app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
