@@ -10,3 +10,4 @@ if not admin_exists:
     print("Admin user created. Username: admin, Password: admin123")
 else:
     print("Admin user already exists.")
+

@@ -11,6 +11,7 @@ import json
 import random
 from flask_socketio import SocketIO, emit, join_room
 
+
 # Load environment variables
 load_dotenv()
 

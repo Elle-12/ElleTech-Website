@@ -1,47 +1,16 @@
-
-body {
-  background-color: #0e141b;
-  color: #e3e6eb;
-  margin-bottom: 20%;
-
-
-}
-
-h2 {
-  text-shadow: 0 0 8px #00bfff;
-}
-
-.card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.membership-card {
+  background: rgba(255,255,255,0.05);
+  padding: 30px;
   border-radius: 10px;
-  margin-bottom: 10%;
+  text-align: center;
 }
 
-.table th, .table td {
-  vertical-align: middle;
-  margin-bottom: 25%;
+select.form-select {
+  background: rgba(255,255,255,0.1);
+  color: #101010;
 }
 
-.btn-warning {
-  background-color: #ffb84d;
-  border: none;
-  color: #000;
-}
-
-.btn-warning:hover {
-  background-color: #ffcf70;
-}
-
-.btn-danger {
-  background: #ff4d4d;
-  border: none;
-}
-
-.btn-danger:hover {
-  background: #ff6666;
-}
-
-/* Custom Scrollbar Styles for Products */
+/* Custom Scrollbar Styles for Membership */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;

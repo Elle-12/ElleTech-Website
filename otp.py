@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import random
 import json
 
+
 # JSON file for storing OTPs
 OTP_JSON_FILE = 'otp_storage.json'
 

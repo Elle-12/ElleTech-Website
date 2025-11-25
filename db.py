@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+
 # DATABASE CONNECTION
 def get_db():
     try:
